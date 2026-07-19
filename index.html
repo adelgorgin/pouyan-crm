@@ -137,6 +137,7 @@
 
   .log-form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .form-grid>*{min-width:0;}
   @media (max-width:600px){ .form-grid{grid-template-columns:1fr;} }
   .field{display:flex;flex-direction:column;gap:5px;}
   .field label{font-size:12px;font-weight:700;color:var(--ink-soft);}
@@ -174,6 +175,7 @@
   .no-log{color:var(--ink-soft);font-size:13px;padding:14px 4px;}
 
   .reg-page{max-width:520px;}
+  .reg-page-wide{max-width:980px;}
   .reg-title{font-size:18px;font-weight:800;margin-bottom:4px;}
   .reg-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px;}
   .reg-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;}
@@ -1110,7 +1112,7 @@ function renderMain(){
 /* ===================== صفحه‌ی افزودن مشتری (تب جدا) ===================== */
 function renderAddPage(){
   const main=$('#main'); main.innerHTML='';
-  const wrap=el('div','reg-page');
+  const wrap=el('div','reg-page reg-page-wide');
   wrap.innerHTML=`
     <div class="reg-title">افزودن مشتری جدید</div>
     <div class="reg-sub">این مشتری بعد از ثبت، مستقیم در تب «در حال پیگیری» قرار می‌گیره. اگه همین الان هم باهاش تماس گرفتی، می‌تونی نتیجه‌ی پیگیری رو همین‌جا ثبت کنی.</div>
