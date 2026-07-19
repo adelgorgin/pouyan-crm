@@ -1,0 +1,942 @@
+<!-- پیگیری مشتریان — کارگزاری پویان، شعبه شیراز -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --paper:#EEF1F0;
+    --card:#FFFFFF;
+    --ink:#182A2E;
+    --ink-soft:#5C6E71;
+    --line:#DDE3E1;
+    --teal:#0F6E5F;
+    --teal-deep:#0B4F45;
+    --teal-tint:#E4F1EE;
+    --amber:#B9772F;
+    --amber-tint:#FBEEE0;
+    --brick:#A93E37;
+    --brick-tint:#F7E7E5;
+    --gold:#8A6A1F;
+    --gold-tint:#F3ECD9;
+    --violet:#5B4B8A;
+    --violet-tint:#ECE8F5;
+    --font: 'Vazirmatn', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body,.root{margin:0;padding:0;}
+  .root{
+    font-family:var(--font);
+    background:var(--paper);
+    color:var(--ink);
+    direction:rtl;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  .app-shell{display:flex;flex:1;min-height:100vh;}
+  @media (max-width:820px){ .app-shell{flex-direction:column;} }
+
+  .nav-vertical{
+    width:216px;flex-shrink:0;background:var(--teal-deep);color:#fff;
+    display:flex;flex-direction:column;padding:22px 16px;gap:4px;
+  }
+  @media (max-width:820px){
+    .nav-vertical{width:100%;flex-direction:row;align-items:center;overflow-x:auto;padding:12px 16px;gap:8px;}
+    .nav-vertical .brand{margin-bottom:0;margin-left:14px;flex-shrink:0;}
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;margin-bottom:22px;}
+  .brand h1{font-size:18px;font-weight:800;margin:0;letter-spacing:.2px;}
+  .brand span{font-size:11.5px;color:#BFE0D8;font-weight:500;}
+  .nav-tab-btn{
+    border:none;background:transparent;color:#CFE8E1;font-family:var(--font);
+    font-size:13.5px;font-weight:600;padding:10px 14px;border-radius:9px;cursor:pointer;
+    transition:.15s;white-space:nowrap;text-align:right;width:100%;
+  }
+  .nav-tab-btn.active{background:#fff;color:var(--teal-deep);}
+  .nav-tab-btn:not(.active):hover{background:rgba(255,255,255,.12);}
+
+  .content-col{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .layout{display:flex;flex:1;min-height:0;}
+  @media (max-width:820px){ .layout{flex-direction:column;} }
+
+  .sidebar{
+    width:320px;flex-shrink:0;background:var(--card);border-left:1px solid var(--line);
+    display:flex;flex-direction:column;max-height:calc(100vh - 66px);
+  }
+  @media (max-width:820px){ .sidebar{width:100%;max-height:none;} }
+  .sidebar.hidden-panel{display:none;}
+
+  .sidebar-head{padding:14px 16px 10px;border-bottom:1px solid var(--line);}
+  .search{
+    width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;
+    font-family:var(--font);font-size:13.5px;background:var(--paper);
+  }
+  .search:focus{outline:2px solid var(--teal);outline-offset:1px;}
+
+  .client-list{overflow-y:auto;padding:8px;}
+  .client-item{
+    padding:11px 12px;border-radius:10px;cursor:pointer;margin-bottom:4px;
+    border:1px solid transparent;transition:.12s;
+  }
+  .client-item:hover{background:var(--paper);}
+  .client-item.selected{background:var(--teal-tint);border-color:var(--teal);}
+  .ci-top{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+  .ci-name{font-weight:700;font-size:14px;}
+  .ci-phone{font-size:11.5px;color:var(--ink-soft);margin-top:2px;direction:ltr;text-align:right;}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+  .badge.overdue{background:var(--brick-tint);color:var(--brick);}
+  .badge.today{background:var(--amber-tint);color:var(--amber);}
+  .badge.upcoming{background:var(--teal-tint);color:var(--teal-deep);}
+  .badge.none{background:#EEE;color:#888;}
+  .badge.completed{background:var(--gold-tint);color:var(--gold);}
+  .badge.awaiting{background:var(--violet-tint);color:var(--violet);}
+  .empty-note{padding:24px 16px;color:var(--ink-soft);font-size:13px;text-align:center;line-height:2;}
+
+  .main{flex:1;padding:22px 26px;overflow-y:auto;}
+  .placeholder{
+    height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:var(--ink-soft);text-align:center;gap:10px;
+  }
+  .placeholder b{color:var(--ink);font-size:16px;}
+
+  .client-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:16px;}
+  .client-header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+  .client-header h2{margin:0 0 4px;font-size:20px;font-weight:800;}
+  .meta-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;color:var(--ink-soft);font-size:13px;}
+  .meta-row b{color:var(--ink);font-weight:600;}
+  .pill-select{
+    padding:6px 10px;border-radius:8px;border:1px solid var(--line);font-family:var(--font);
+    font-size:12.5px;background:var(--paper);cursor:pointer;
+  }
+  .icon-btn{
+    border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;
+    font-family:var(--font);font-size:12.5px;cursor:pointer;font-weight:600;color:var(--ink-soft);
+  }
+  .icon-btn:hover{border-color:var(--brick);color:var(--brick);}
+  .icon-btn.gold{color:var(--gold);border-color:var(--gold-tint);}
+  .icon-btn.gold:hover{background:var(--gold-tint);}
+  .icon-btn.violet{color:var(--violet);border-color:var(--violet-tint);}
+  .icon-btn.violet:hover{background:var(--violet-tint);}
+
+  .next-box{
+    margin-top:16px;border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;
+    align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .next-box.overdue{background:var(--brick-tint);}
+  .next-box.today{background:var(--amber-tint);}
+  .next-box.upcoming{background:var(--teal-tint);}
+  .next-box.none{background:var(--paper);}
+  .next-box.completed{background:var(--gold-tint);}
+  .next-box.awaiting{background:var(--violet-tint);}
+  .next-box .lbl{font-size:11.5px;font-weight:700;color:var(--ink-soft);margin-bottom:3px;}
+  .next-box .val{font-size:14.5px;font-weight:700;}
+  .next-box .plan{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+
+  .section-title{font-size:14.5px;font-weight:800;margin:22px 2px 10px;display:flex;align-items:center;gap:8px;}
+  .section-title .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);}
+
+  .log-form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:600px){ .form-grid{grid-template-columns:1fr;} }
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:12px;font-weight:700;color:var(--ink-soft);}
+  .field input, .field textarea, .field select{
+    font-family:var(--font);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13.5px;
+    background:var(--paper);
+  }
+  .field textarea{resize:vertical;min-height:56px;}
+  .full{grid-column:1/-1;}
+  .save-log-btn{
+    margin-top:14px;padding:10px 22px;border:none;border-radius:9px;background:var(--teal);
+    color:#fff;font-family:var(--font);font-weight:700;font-size:13.5px;cursor:pointer;
+  }
+  .save-log-btn:hover{background:var(--teal-deep);}
+
+  .date-picker{display:flex;gap:6px;}
+  .date-picker select{flex:1;min-width:0;}
+
+  .timeline{position:relative;margin-top:16px;padding-inline-start:0;}
+  .t-entry{position:relative;padding-inline-end:26px;padding-bottom:20px;}
+  .t-entry:not(:last-child)::before{
+    content:"";position:absolute;top:16px;right:6px;bottom:-4px;width:2px;background:var(--line);
+  }
+  .t-dot{position:absolute;top:2px;right:0;width:13px;height:13px;border-radius:50%;background:var(--teal);border:3px solid var(--teal-tint);}
+  .t-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 16px;}
+  .t-date{font-size:12px;font-weight:700;color:var(--teal-deep);}
+  .t-note{font-size:13.5px;margin-top:5px;line-height:1.9;}
+  .t-next{margin-top:8px;font-size:12px;color:var(--ink-soft);background:var(--paper);border-radius:8px;padding:6px 10px;display:inline-block;}
+  .no-log{color:var(--ink-soft);font-size:13px;padding:14px 4px;}
+
+  .reg-page{max-width:520px;}
+  .reg-title{font-size:18px;font-weight:800;margin-bottom:4px;}
+  .reg-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px;}
+  .reg-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;}
+  .reg-actions{display:flex;justify-content:flex-end;margin-top:6px;}
+  .reg-save{padding:11px 26px;border:none;border-radius:9px;background:var(--teal);color:#fff;font-family:var(--font);font-weight:700;font-size:14px;cursor:pointer;}
+  .reg-save:hover{background:var(--teal-deep);}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--teal-deep);color:#fff;
+    padding:10px 20px;border-radius:9px;font-size:13px;font-weight:600;z-index:100;opacity:0;transition:.25s;pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+
+  .who-tag{font-size:11px;color:var(--ink-soft);margin-top:6px;}
+  .nav-spacer{flex:1;}
+  .nav-tab-btn.logout-btn{color:#F3C9C4;}
+  .nav-tab-btn.logout-btn:hover{background:rgba(169,62,55,.35);}
+  .nav-user{font-size:11.5px;color:#BFE0D8;padding:4px 14px 14px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:8px;}
+  @media (max-width:820px){ .nav-spacer{display:none;} .nav-user{border:none;padding:0 8px;margin:0;} }
+
+  .login-overlay{
+    position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;
+    z-index:200;padding:16px;font-family:var(--font);direction:rtl;
+  }
+  .login-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px 28px;width:360px;max-width:100%;text-align:center;}
+  .login-card h2{margin:0 0 6px;font-size:18px;font-weight:800;color:var(--ink);}
+  .login-card p{margin:0 0 18px;font-size:13px;color:var(--ink-soft);}
+  .login-card input{
+    width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;font-family:var(--font);
+    font-size:14px;background:var(--paper);margin-bottom:12px;text-align:center;
+  }
+  .login-card button{
+    width:100%;padding:11px;border:none;border-radius:9px;background:var(--teal);color:#fff;
+    font-family:var(--font);font-weight:700;font-size:14px;cursor:pointer;
+  }
+  .login-card button:hover{background:var(--teal-deep);}
+</style>
+
+<div class="root" id="root">
+  <div class="login-overlay" id="loginOverlay" style="display:none;">
+    <div class="login-card" id="authBox"></div>
+  </div>
+
+  <div class="app-shell">
+    <nav class="nav-vertical">
+      <div class="brand">
+        <h1>پیگیری مشتریان</h1>
+        <span>کارگزاری پویان — شعبه شیراز</span>
+      </div>
+      <div class="nav-user" id="navUser"></div>
+      <button class="nav-tab-btn active" data-tab="today" id="tabToday">امروز</button>
+      <button class="nav-tab-btn" data-tab="all" id="tabAll">همه مشتریان</button>
+      <button class="nav-tab-btn" data-tab="awaiting" id="tabAwaiting">در حال پیگیری</button>
+      <button class="nav-tab-btn" data-tab="add" id="tabAdd">افزودن مشتری</button>
+      <button class="nav-tab-btn" data-tab="done" id="tabDone">ثبت‌نام‌شده‌ها</button>
+      <button class="nav-tab-btn" data-tab="users" id="tabUsers" style="display:none;">مدیریت دسترسی‌ها</button>
+      <div class="nav-spacer"></div>
+      <button class="nav-tab-btn logout-btn" id="tabLogout">خروج از حساب</button>
+    </nav>
+
+    <div class="content-col">
+      <div class="layout">
+        <div class="sidebar" id="sidebarPanel">
+          <div class="sidebar-head">
+            <input class="search" id="searchBox" placeholder="جستجوی نام یا شماره تماس...">
+          </div>
+          <div class="client-list" id="clientList"></div>
+        </div>
+
+        <div class="main" id="main"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== تقویم جلالی (شمسی) ===================== */
+function div_(a,b){return ~~(a/b);}
+function mod_(a,b){return a-~~(a/b)*b;}
+function jalCal(jy){
+  var breaks=[-61,9,38,199,426,686,756,818,1111,1181,1210,1635,2060,2097,2192,2262,2324,2394,2456,3178];
+  var bl=breaks.length, gy=jy+621, leapJ=-14, jp=breaks[0], jm,jump,leap,n,i;
+  for(i=1;i<bl;i+=1){ jm=breaks[i]; jump=jm-jp; if(jy<jm) break;
+    leapJ=leapJ+div_(jump,33)*8+div_(mod_(jump,33),4); jp=jm; }
+  n=jy-jp;
+  leapJ=leapJ+div_(n,33)*8+div_(mod_(n,33)+3,4);
+  if(mod_(jump,33)===4 && jump-n===4) leapJ+=1;
+  var leapG=div_(gy,4)-div_((div_(gy,100)+1)*3,4)-150;
+  var march=20+leapJ-leapG;
+  if(jump-n<6) n=n-jump+div_(jump+4,33)*33;
+  leap=mod_(mod_(n+1,33)-1,4); if(leap===-1) leap=4;
+  return {leap:leap,gy:gy,march:march};
+}
+function g2d(gy,gm,gd){
+  var d=div_((gy+div_(gm-8,6)+100100)*1461,4)+div_(153*mod_(gm+9,12)+2,5)+gd-34840408;
+  d=d-div_(div_(gy+100100+div_(gm-8,6),100)*3,4)+752;
+  return d;
+}
+function d2g(jdn){
+  var j=4*jdn+139361631;
+  j=j+div_(div_(4*jdn+183187720,146097)*3,4)*4-3908;
+  var i=div_(mod_(j,1461),4)*5+308;
+  var gd=div_(mod_(i,153),5)+1;
+  var gm=mod_(div_(i,153),12)+1;
+  var gy=div_(j,1461)-100100+div_(8-gm,6);
+  return {gy:gy,gm:gm,gd:gd};
+}
+function j2d(jy,jm,jd){
+  var r=jalCal(jy);
+  return g2d(r.gy,3,r.march)+(jm-1)*31-div_(jm,7)*(jm-7)+jd-1;
+}
+function d2j(jdn){
+  var gy=d2g(jdn).gy, jy=gy-621, r=jalCal(jy), jdn1f=g2d(gy,3,r.march);
+  var jd,jm,k;
+  k=jdn-jdn1f;
+  if(k>=0){
+    if(k<=185){ jm=1+div_(k,31); jd=mod_(k,31)+1; return {jy:jy,jm:jm,jd:jd}; }
+    else k-=186;
+  } else { jy-=1; k+=179; if(r.leap===1) k+=1; }
+  jm=7+div_(k,30); jd=mod_(k,30)+1;
+  return {jy:jy,jm:jm,jd:jd};
+}
+function toJalaali(gy,gm,gd){ return d2j(g2d(gy,gm,gd)); }
+function toGregorian(jy,jm,jd){ return d2g(j2d(jy,jm,jd)); }
+function isLeapJalaaliYear(jy){ return jalCal(jy).leap===0; }
+function jalaaliMonthDays(jy,jm){ if(jm<=6) return 31; if(jm<=11) return 30; return isLeapJalaaliYear(jy)?30:29; }
+const JMONTHS=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function isoFromJalali(jy,jm,jd){
+  if(!jy||!jm||!jd) return null;
+  const g=toGregorian(jy,jm,jd);
+  return `${g.gy}-${pad2(g.gm)}-${pad2(g.gd)}`;
+}
+function jalaliFromIso(iso){
+  if(!iso) return null;
+  const [gy,gm,gd]=iso.split('-').map(Number);
+  return toJalaali(gy,gm,gd);
+}
+function todayJalali(){
+  const d=new Date();
+  return toJalaali(d.getFullYear(), d.getMonth()+1, d.getDate());
+}
+function todayStr(){
+  const d=new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+function fmtDate(iso){
+  if(!iso) return '';
+  const j=jalaliFromIso(iso);
+  return `${j.jd} ${JMONTHS[j.jm-1]} ${j.jy}`;
+}
+function daysDiff(iso){
+  if(!iso) return null;
+  const [gy,gm,gd]=iso.split('-').map(Number);
+  const a=new Date(); a.setHours(0,0,0,0);
+  const b=new Date(gy,gm-1,gd);
+  return Math.round((b-a)/86400000);
+}
+
+/* ===== date picker component (day/month/year selects, jalali) ===== */
+function buildDatePicker(idPrefix, iso){
+  const j = iso ? jalaliFromIso(iso) : {jy:'',jm:'',jd:''};
+  const ty = todayJalali().jy;
+  let yearsOpts = '<option value="">سال</option>';
+  for(let y=ty-2;y<=ty+3;y++){ yearsOpts += `<option value="${y}" ${y===j.jy?'selected':''}>${y}</option>`; }
+  let monthOpts = '<option value="">ماه</option>';
+  JMONTHS.forEach((m,i)=>{ monthOpts += `<option value="${i+1}" ${i+1===j.jm?'selected':''}>${m}</option>`; });
+  let dayOpts = '<option value="">روز</option>';
+  const maxDay = (j.jy && j.jm) ? jalaaliMonthDays(j.jy,j.jm) : 31;
+  for(let d=1;d<=maxDay;d++){ dayOpts += `<option value="${d}" ${d===j.jd?'selected':''}>${d}</option>`; }
+  return `<div class="date-picker" data-prefix="${idPrefix}">
+    <select id="${idPrefix}_d">${dayOpts}</select>
+    <select id="${idPrefix}_m">${monthOpts}</select>
+    <select id="${idPrefix}_y">${yearsOpts}</select>
+  </div>`;
+}
+function readDatePicker(idPrefix){
+  const d = parseInt(document.getElementById(idPrefix+'_d').value);
+  const m = parseInt(document.getElementById(idPrefix+'_m').value);
+  const y = parseInt(document.getElementById(idPrefix+'_y').value);
+  if(!d||!m||!y) return null;
+  return isoFromJalali(y,m,d);
+}
+
+/* ===================== داده و ذخیره‌سازی ===================== */
+let DATA = { clients: {} };
+let selectedId = null;
+let currentTab = 'today';
+let currentUser = null;
+const STORE_KEY = 'crm-data';
+
+const $ = sel => document.querySelector(sel);
+const el = (tag, cls, html) => { const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; };
+
+/* ===================== اتصال به بک‌اند واقعی (Supabase) =====================
+   این دو مقدار رو بعد از ساخت پروژه‌ی رایگان در supabase.com جایگزین کن:
+   SUPABASE_URL: از Project Settings > API > Project URL
+   SUPABASE_ANON_KEY: از Project Settings > API > anon public key
+   تا وقتی این دو مقدار رو نذاری، برنامه کار نمی‌کنه و پیام راهنما نشون می‌ده. */
+const SUPABASE_URL = 'https://ozzilqplshjrcshcfitk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96emlscXBsc2hqcmNzaGNmaXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzOTE2NTgsImV4cCI6MjA5OTk2NzY1OH0.YaBSiQBZH9pYgn74j3zoL4rCx6cnAsybb9pbUE0ME3E';
+const backendConfigured = !SUPABASE_URL.startsWith('PASTE_') && !SUPABASE_ANON_KEY.startsWith('PASTE_');
+
+/* داده‌های «اشتراکی» (shared=true) روی Supabase ذخیره می‌شن — واقعاً بین همه‌ی کامپیوترها مشترکه.
+   داده‌ی «شخصی» (shared=false) فقط سشن ورود همین مرورگره و نیازی نیست روی سرور بره؛ در localStorage همین سیستم می‌مونه. */
+async function sGet(key, shared){
+  if(!shared){
+    try{ const raw=localStorage.getItem('lf_'+key); return raw!==null ? {key, value:raw, shared} : null; }catch(e){ return null; }
+  }
+  if(!backendConfigured) return null;
+  try{
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}&select=value`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if(!r.ok) return null;
+    const rows = await r.json();
+    if(!rows.length) return null;
+    return { key, value: rows[0].value, shared };
+  }catch(e){ return null; }
+}
+async function sSet(key, value, shared){
+  if(!shared){
+    try{ localStorage.setItem('lf_'+key, value); return {key, value, shared}; }catch(e){ return null; }
+  }
+  if(!backendConfigured) return null;
+  try{
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?on_conflict=key`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify([{ key, value, updated_at: new Date().toISOString() }])
+    });
+    return r.ok ? {key, value, shared} : null;
+  }catch(e){ return null; }
+}
+async function sDelete(key, shared){
+  if(!shared){
+    try{ localStorage.removeItem('lf_'+key); return {key, deleted:true, shared}; }catch(e){ return null; }
+  }
+  if(!backendConfigured) return null;
+  try{
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    return r.ok ? {key, deleted:true, shared} : null;
+  }catch(e){ return null; }
+}
+function showBackendNotConfigured(){
+  document.body.innerHTML = `
+    <div style="max-width:520px;margin:80px auto;padding:28px;font-family:Vazirmatn,sans-serif;text-align:right;direction:rtl;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);">
+      <h2 style="margin-top:0;">هنوز به دیتابیس وصل نشده</h2>
+      <p>برای اینکه اطلاعات بین همه‌ی کامپیوترها مشترک و همیشگی بمونه، این فایل باید به یه دیتابیس آنلاین رایگان (Supabase) وصل بشه. مقادیر SUPABASE_URL و SUPABASE_ANON_KEY رو در فایل جایگزین کن، یا اونا رو برای Claude بفرست تا برات جایگزین کنه.</p>
+    </div>`;
+}
+
+function statusOf(nextDate, status){
+  if(status==='completed') return 'completed';
+  if(status==='awaiting') return 'awaiting';
+  if(!nextDate) return 'none';
+  const diff = daysDiff(nextDate);
+  if(diff<0) return 'overdue';
+  if(diff===0) return 'today';
+  return 'upcoming';
+}
+const statusLabel = { overdue:'عقب‌افتاده', today:'امروز', upcoming:'در انتظار', none:'بدون برنامه', completed:'تکمیل‌شده', awaiting:'در حال پیگیری' };
+const sourceLabel = { mobin:'انتقالی از مبین', pouyan_inactive:'غیرفعال پویان', other:'سایر' };
+
+async function loadData(){
+  try{ const res = await sGet(STORE_KEY,true); if(res && res.value) DATA=JSON.parse(res.value); }
+  catch(e){ DATA={clients:{}}; }
+  render();
+}
+async function saveData(){
+  try{ const r=await sSet(STORE_KEY, JSON.stringify(DATA), true); if(!r) showToast('خطا در ذخیره‌سازی'); }
+  catch(e){ showToast('خطا در ذخیره‌سازی — دوباره تلاش کن'); }
+}
+
+/* ===================== احراز هویت (یوزر/پسورد + تایید مدیر) ===================== */
+const AUTH_ADMIN_KEY='auth-admin', AUTH_USERS_KEY='auth-users', AUTH_PENDING_KEY='auth-pending', SESSION_KEY='session';
+let ADMIN=null, USERS={}, PENDING={};
+let currentUsername=null, isAdmin=false;
+
+async function sha256(text){
+  const enc=new TextEncoder().encode(text);
+  const buf=await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function getShared(key){ try{ const r=await sGet(key,true); return r&&r.value?JSON.parse(r.value):null; }catch(e){ return null; } }
+async function setShared(key,val){ try{ await sSet(key, JSON.stringify(val), true); }catch(e){ showToast('خطا در ذخیره‌سازی'); } }
+
+async function loadAuthState(){
+  ADMIN = await getShared(AUTH_ADMIN_KEY);
+  USERS = (await getShared(AUTH_USERS_KEY)) || {};
+  PENDING = (await getShared(AUTH_PENDING_KEY)) || {};
+}
+
+function renderNavUser(){
+  $('#navUser').textContent = currentUser ? ('کاربر: ' + currentUser + (isAdmin?' (مدیر)':'')) : '';
+  $('#tabUsers').style.display = isAdmin ? 'block' : 'none';
+}
+
+function showLogin(mode){ $('#loginOverlay').style.display='flex'; renderAuthBox(mode || (ADMIN ? 'login' : 'setup')); }
+function hideLogin(){ $('#loginOverlay').style.display='none'; }
+
+let captchaAnswer=null;
+function genCaptcha(){
+  const a=Math.floor(Math.random()*9)+1, b=Math.floor(Math.random()*9)+1;
+  captchaAnswer=a+b;
+  return `${a} + ${b}`;
+}
+function captchaBlock(){
+  return `
+    <div class="captcha-row" style="margin:10px 0;">
+      <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;">برای تایید اینکه ربات نیستی، حاصل جمع رو وارد کن: <b>${genCaptcha()}</b></label>
+      <input id="authCaptcha" inputmode="numeric" placeholder="جواب رو اینجا بنویس">
+    </div>`;
+}
+function checkCaptcha(box){
+  const v=box.querySelector('#authCaptcha').value.trim();
+  if(v===''||Number(v)!==captchaAnswer){ showToast('جواب کپچا درست نیست'); return false; }
+  return true;
+}
+
+function renderAuthBox(mode){
+  const box=$('#authBox');
+  if(mode==='setup'){
+    box.innerHTML=`
+      <h2>راه‌اندازی اولیه</h2>
+      <p>چون اولین باره این سیستم اجرا می‌شه، اول باید حساب مدیر (خودت) رو بسازی. بعد از این، هر کس دیگه‌ای بخواد وارد بشه باید از تو اجازه بگیره.</p>
+      <input id="authUsername" placeholder="نام کاربری مدیر">
+      <input id="authPassword" type="password" placeholder="رمز عبور مدیر">
+      <button id="authSubmit">ساخت حساب مدیر</button>
+    `;
+    box.querySelector('#authSubmit').addEventListener('click', async ()=>{
+      const u=box.querySelector('#authUsername').value.trim();
+      const p=box.querySelector('#authPassword').value;
+      if(!u||!p){ showToast('نام کاربری و رمز رو وارد کن'); return; }
+      const hash=await sha256(p);
+      ADMIN={username:u, passwordHash:hash, name:u};
+      await setShared(AUTH_ADMIN_KEY, ADMIN);
+      currentUsername=u; currentUser=u; isAdmin=true;
+      await setShared_session(u);
+      hideLogin(); renderNavUser(); await loadData();
+    });
+  } else if(mode==='login'){
+    box.innerHTML=`
+      <h2>ورود به سیستم پیگیری</h2>
+      <p>با نام کاربری و رمزی که داری وارد شو</p>
+      <input id="authUsername" placeholder="نام کاربری">
+      <input id="authPassword" type="password" placeholder="رمز عبور">
+      ${captchaBlock()}
+      <button id="authSubmit">ورود</button>
+      <p style="margin-top:14px;">حساب نداری؟ <a href="#" id="goRequest" style="color:var(--teal);font-weight:700;">درخواست دسترسی بده</a></p>
+    `;
+    box.querySelector('#authSubmit').addEventListener('click', async ()=>{
+      const u=box.querySelector('#authUsername').value.trim();
+      const p=box.querySelector('#authPassword').value;
+      if(!u||!p){ showToast('نام کاربری و رمز رو وارد کن'); return; }
+      if(!checkCaptcha(box)){ renderAuthBox('login'); return; }
+      const hash=await sha256(p);
+      if(ADMIN && u===ADMIN.username && hash===ADMIN.passwordHash){
+        currentUsername=u; currentUser=ADMIN.name||u; isAdmin=true;
+        await setShared_session(u); hideLogin(); renderNavUser(); await loadData(); return;
+      }
+      if(USERS[u] && USERS[u].passwordHash===hash){
+        currentUsername=u; currentUser=USERS[u].name||u; isAdmin=false;
+        await setShared_session(u); hideLogin(); renderNavUser(); await loadData(); return;
+      }
+      if(PENDING[u]){ showToast('درخواستت هنوز تایید نشده'); return; }
+      showToast('نام کاربری یا رمز اشتباهه');
+    });
+    box.querySelector('#goRequest').addEventListener('click', (e)=>{ e.preventDefault(); renderAuthBox('request'); });
+  } else if(mode==='request'){
+    box.innerHTML=`
+      <h2>درخواست دسترسی</h2>
+      <p>اطلاعات زیر رو پر کن؛ بعد از تایید مدیر، می‌تونی با همین نام کاربری و رمز وارد بشی</p>
+      <input id="reqName" placeholder="نام و نام خانوادگی">
+      <input id="reqUsername" placeholder="نام کاربری دلخواه">
+      <input id="reqPassword" type="password" placeholder="رمز عبور دلخواه">
+      ${captchaBlock()}
+      <button id="reqSubmit">ارسال درخواست</button>
+      <p style="margin-top:14px;"><a href="#" id="goLogin" style="color:var(--teal);font-weight:700;">قبلاً تایید شدی؟ برو صفحه‌ی ورود</a></p>
+    `;
+    box.querySelector('#reqSubmit').addEventListener('click', async ()=>{
+      const name=box.querySelector('#reqName').value.trim();
+      const u=box.querySelector('#reqUsername').value.trim();
+      const p=box.querySelector('#reqPassword').value;
+      if(!name||!u||!p){ showToast('همه‌ی فیلدها رو پر کن'); return; }
+      if(!checkCaptcha(box)){ renderAuthBox('request'); return; }
+      if((ADMIN&&u===ADMIN.username)||USERS[u]||PENDING[u]){ showToast('این نام کاربری قبلاً گرفته شده'); return; }
+      const hash=await sha256(p);
+      PENDING[u]={name, passwordHash:hash, requestedAt:todayStr()};
+      await setShared(AUTH_PENDING_KEY, PENDING);
+      renderAuthBox('pending-msg');
+    });
+    box.querySelector('#goLogin').addEventListener('click', (e)=>{ e.preventDefault(); renderAuthBox('login'); });
+  } else if(mode==='pending-msg'){
+    box.innerHTML=`
+      <h2>درخواست ثبت شد</h2>
+      <p>درخواستت برای مدیر سیستم فرستاده شد. تا وقتی تاییدش نکنه نمی‌تونی وارد بشی. بعد از تایید، با همون نام کاربری و رمزی که انتخاب کردی وارد شو.</p>
+      <button id="backToLogin">بازگشت به صفحه‌ی ورود</button>
+    `;
+    box.querySelector('#backToLogin').addEventListener('click', ()=> renderAuthBox('login'));
+  }
+}
+
+async function setShared_session(username){
+  try{ await sSet(SESSION_KEY, JSON.stringify({username}), false); }catch(e){}
+}
+
+async function initAuth(){
+  await loadAuthState();
+  let sessionUsername=null;
+  try{ const s=await sGet(SESSION_KEY,false); if(s&&s.value) sessionUsername=(JSON.parse(s.value)).username; }catch(e){}
+  if(sessionUsername){
+    if(ADMIN && sessionUsername===ADMIN.username){ currentUsername=sessionUsername; currentUser=ADMIN.name||sessionUsername; isAdmin=true; }
+    else if(USERS[sessionUsername]){ currentUsername=sessionUsername; currentUser=USERS[sessionUsername].name||sessionUsername; isAdmin=false; }
+  }
+  if(currentUsername){ hideLogin(); renderNavUser(); await loadData(); }
+  else{ showLogin(); }
+}
+
+$('#tabLogout').addEventListener('click', async ()=>{
+  if(!confirm('از حساب خارج بشی؟')) return;
+  try{ await sDelete(SESSION_KEY, false); }catch(e){}
+  currentUsername=null; currentUser=null; isAdmin=false; selectedId=null;
+  renderNavUser();
+  showLogin('login');
+});
+
+/* ===================== تب مدیریت دسترسی‌ها (فقط مدیر) ===================== */
+function renderUsersTab(){
+  const main=$('#main'); main.innerHTML='';
+  if(!isAdmin){ main.appendChild(el('div','placeholder','<b>این بخش فقط برای مدیره</b>')); return; }
+  const wrap=el('div','reg-page');
+  const pendingKeys=Object.keys(PENDING);
+  const userKeys=Object.keys(USERS);
+
+  let pendingHtml = pendingKeys.length===0
+    ? `<div class="no-log">درخواست در انتظاری وجود نداره.</div>`
+    : pendingKeys.map(u=>`
+      <div class="t-card" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div><b>${PENDING[u].name}</b> <span style="color:var(--ink-soft);font-size:12px;">(نام کاربری: ${u})</span></div>
+        <div style="display:flex;gap:8px;">
+          <button class="icon-btn violet" data-approve="${u}">تایید</button>
+          <button class="icon-btn" data-reject="${u}">رد</button>
+        </div>
+      </div>`).join('');
+
+  let usersHtml = userKeys.length===0
+    ? `<div class="no-log">هنوز کاربری تایید نشده.</div>`
+    : userKeys.map(u=>`
+      <div class="t-card" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div><b>${USERS[u].name}</b> <span style="color:var(--ink-soft);font-size:12px;">(نام کاربری: ${u})</span></div>
+        <button class="icon-btn" data-revoke="${u}">حذف دسترسی</button>
+      </div>`).join('');
+
+  wrap.innerHTML = `
+    <div class="reg-title">مدیریت دسترسی‌ها</div>
+    <div class="reg-sub">درخواست‌های ورود جدید رو تایید یا رد کن، و دسترسی کاربران فعلی رو مدیریت کن.</div>
+    <div class="section-title"><span class="dot"></span> درخواست‌های در انتظار تایید</div>
+    ${pendingHtml}
+    <div class="section-title"><span class="dot"></span> کاربران دارای دسترسی</div>
+    ${usersHtml}
+  `;
+  main.appendChild(wrap);
+
+  wrap.querySelectorAll('[data-approve]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const u=btn.getAttribute('data-approve');
+      USERS[u]={...PENDING[u], approvedAt:todayStr()};
+      delete PENDING[u];
+      await setShared(AUTH_USERS_KEY, USERS);
+      await setShared(AUTH_PENDING_KEY, PENDING);
+      showToast('کاربر تایید شد'); renderUsersTab();
+    });
+  });
+  wrap.querySelectorAll('[data-reject]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const u=btn.getAttribute('data-reject');
+      delete PENDING[u];
+      await setShared(AUTH_PENDING_KEY, PENDING);
+      showToast('درخواست رد شد'); renderUsersTab();
+    });
+  });
+  wrap.querySelectorAll('[data-revoke]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const u=btn.getAttribute('data-revoke');
+      if(!confirm('دسترسی این کاربر حذف بشه؟')) return;
+      delete USERS[u];
+      await setShared(AUTH_USERS_KEY, USERS);
+      showToast('دسترسی حذف شد'); renderUsersTab();
+    });
+  });
+}
+function showToast(msg){
+  const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(showToast._h); showToast._h=setTimeout(()=>t.classList.remove('show'),2200);
+}
+function clientNextInfo(c){
+  const logs=c.followups||[];
+  if(logs.length===0) return {nextDate:null, plan:null};
+  const sorted=[...logs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const last=sorted[0];
+  return {nextDate:last.nextDate||null, plan:last.nextPlan||null};
+}
+
+/* ===================== رندر لیست ===================== */
+function renderList(){
+  const list=$('#clientList'); list.innerHTML='';
+  const q=$('#searchBox').value.trim();
+  let entries=Object.values(DATA.clients).filter(c=>!q || c.name.includes(q) || (c.phone||'').includes(q) || (c.nationalId||'').includes(q));
+  entries=entries.map(c=>({c,next:clientNextInfo(c)}));
+
+  if(currentTab==='today'){
+    entries=entries.filter(e=>e.c.status!=='completed' && e.c.status!=='awaiting' && e.next.nextDate && (statusOf(e.next.nextDate,e.c.status)==='overdue' || statusOf(e.next.nextDate,e.c.status)==='today'));
+    entries.sort((a,b)=>(a.next.nextDate||'').localeCompare(b.next.nextDate||''));
+  } else if(currentTab==='done'){
+    entries=entries.filter(e=>e.c.status==='completed');
+    entries.sort((a,b)=>(b.c.completedDate||'').localeCompare(a.c.completedDate||''));
+  } else if(currentTab==='awaiting'){
+    entries=entries.filter(e=>e.c.status==='awaiting');
+    entries.sort((a,b)=>(b.c.createdAt||'').localeCompare(a.c.createdAt||''));
+  } else if(currentTab==='all'){
+    entries=entries.filter(e=>e.c.status!=='completed' && e.c.status!=='awaiting');
+    entries.sort((a,b)=>a.c.name.localeCompare(b.c.name,'fa'));
+  } else {
+    entries=[];
+  }
+
+  if(entries.length===0){
+    let msg='هیچ مشتری‌ای اینجا نیست.';
+    if(currentTab==='today') msg='هیچ پیگیری عقب‌افتاده یا برای امروز نداری. عالیه! 🌿';
+    if(currentTab==='all') msg='هنوز مشتری‌ای تایید نشده تا اینجا باشه.';
+    if(currentTab==='awaiting') msg='مشتری‌ای در حال پیگیری نیست.';
+    if(currentTab==='done') msg='هنوز هیچ مشتری‌ای تکمیل ثبت‌نام نشده.';
+    list.appendChild(el('div','empty-note',msg));
+    return;
+  }
+  entries.forEach(({c,next})=>{
+    const st=statusOf(next.nextDate, c.status);
+    const item=el('div','client-item'+(c.id===selectedId?' selected':''));
+    item.innerHTML=`<div class="ci-top"><span class="ci-name">${c.name}</span><span class="badge ${st}">${statusLabel[st]}</span></div><div class="ci-phone">${c.phone||''}</div>`;
+    item.addEventListener('click', ()=>{ selectedId=c.id; renderMain(); renderList(); });
+    list.appendChild(item);
+  });
+}
+
+/* ===================== رندر پنل اصلی ===================== */
+function renderMain(){
+  if(currentTab==='add'){ renderAddPage(); return; }
+  if(currentTab==='users'){ renderUsersTab(); return; }
+  const main=$('#main'); main.innerHTML='';
+  const c=DATA.clients[selectedId];
+  if(!c){
+    main.appendChild(el('div','placeholder','<b>یه مشتری رو از لیست انتخاب کن</b><span>یا از تب «افزودن مشتری» شروع کن</span>'));
+    return;
+  }
+  const next=clientNextInfo(c);
+  const st=statusOf(next.nextDate, c.status);
+  const isDone = c.status==='completed';
+  const isAwaiting = c.status==='awaiting';
+
+  const card=el('div','client-card');
+  card.innerHTML=`
+    <div class="client-header">
+      <div>
+        <h2>${c.name}</h2>
+        <div class="meta-row">
+          <span><b>تلفن:</b> ${c.phone||'—'}</span>
+          <span><b>کد ملی:</b> ${c.nationalId||'—'}</span>
+          <span><b>منبع:</b> ${sourceLabel[c.source]||'—'}</span>
+          ${c.createdBy ? `<span><b>ثبت‌کننده:</b> ${c.createdBy}</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        ${(!isDone && !isAwaiting) ? `<select class="pill-select" id="statusSelect">
+          <option value="pending">در حال پیگیری</option>
+          <option value="active">فعال</option>
+          <option value="inactive">غیرفعال</option>
+        </select>` : ''}
+        ${isAwaiting ? `<button class="icon-btn violet" id="approveBtn">انتقال به «همه مشتریان»</button>` : ''}
+        ${isDone
+          ? `<button class="icon-btn gold" id="undoBtn">بازگردانی به لیست فعال</button>`
+          : (!isAwaiting ? `<button class="icon-btn gold" id="completeBtn">✅ تکمیل ثبت‌نام / انتقال</button>` : '')}
+        <button class="icon-btn" id="deleteBtn">حذف مشتری</button>
+      </div>
+    </div>
+    <div class="next-box ${st}">
+      <div>
+        <div class="lbl">${isDone ? 'وضعیت' : 'پیگیری بعدی'}</div>
+        <div class="val">${isDone ? 'ثبت‌نام / انتقال تکمیل شده' + (c.completedDate ? ' — '+fmtDate(c.completedDate) : '') : (next.nextDate ? fmtDate(next.nextDate)+' — '+statusLabel[st] : 'برنامه‌ای ثبت نشده')}</div>
+        ${(!isDone && next.plan) ? `<div class="plan">${next.plan}</div>` : ''}
+      </div>
+    </div>
+  `;
+  main.appendChild(card);
+
+  if(!isDone && !isAwaiting){
+    card.querySelector('#statusSelect').value = c.status || 'pending';
+    card.querySelector('#statusSelect').addEventListener('change', async(e)=>{ c.status=e.target.value; await saveData(); showToast('وضعیت به‌روزرسانی شد'); });
+  }
+  if(isAwaiting){
+    card.querySelector('#approveBtn').addEventListener('click', async()=>{
+      c.status='pending'; await saveData(); showToast('مشتری تایید شد و به «همه مشتریان» منتقل شد');
+      renderMain(); renderList();
+    });
+  }
+  if(isDone){
+    card.querySelector('#undoBtn').addEventListener('click', async()=>{
+      c.status='pending'; delete c.completedDate; await saveData(); showToast('مشتری به لیست فعال برگشت');
+      renderMain(); renderList();
+    });
+  } else if(!isAwaiting){
+    card.querySelector('#completeBtn').addEventListener('click', async()=>{
+      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast('مشتری به «ثبت‌نام‌شده‌ها» منتقل شد');
+      renderMain(); renderList();
+    });
+  }
+  card.querySelector('#deleteBtn').addEventListener('click', async()=>{
+    if(confirm(`مطمئنی می‌خوای «${c.name}» رو حذف کنی؟ این کار قابل بازگشت نیست.`)){
+      delete DATA.clients[c.id]; selectedId=null; await saveData(); renderList(); renderMain();
+      showToast('مشتری حذف شد');
+    }
+  });
+
+  if(!isDone){
+    main.appendChild(el('div','section-title','<span class="dot"></span> ثبت نتیجه پیگیری جدید'));
+    const form=el('div','log-form');
+    form.innerHTML=`
+      <div class="form-grid">
+        <div class="field"><label>تاریخ تماس</label>${buildDatePicker('fDate', todayStr())}</div>
+        <div class="field"><label>تاریخ پیگیری بعدی</label>${buildDatePicker('fNextDate', null)}</div>
+        <div class="field full"><label>نتیجه پیگیری</label><textarea id="fNote" placeholder="مثلاً: تماس گرفتم، گفت هفته دیگه تصمیم می‌گیره..."></textarea></div>
+        <div class="field full"><label>برنامه برای دفعه بعد</label><textarea id="fPlan" placeholder="مثلاً: یادآوری تماس تلفنی، ارسال فرم انتقال کد..."></textarea></div>
+      </div>
+      <button class="save-log-btn" id="saveLogBtn">ثبت پیگیری</button>
+    `;
+    main.appendChild(form);
+    form.querySelector('#saveLogBtn').addEventListener('click', async()=>{
+      const date = readDatePicker('fDate') || todayStr();
+      const note = form.querySelector('#fNote').value.trim();
+      const nextDate = readDatePicker('fNextDate');
+      const nextPlan = form.querySelector('#fPlan').value.trim() || null;
+      if(!note){ showToast('نتیجه پیگیری رو بنویس'); return; }
+      c.followups=c.followups||[];
+      c.followups.push({id:'f'+Date.now(), date, note, nextDate, nextPlan, by: currentUser || null});
+      await saveData(); showToast('پیگیری ثبت شد'); renderMain(); renderList();
+    });
+  }
+
+  {
+    main.appendChild(el('div','section-title','<span class="dot"></span> تاریخچه پیگیری‌ها'));
+    const logs=[...(c.followups||[])].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(logs.length===0){ main.appendChild(el('div','no-log','هنوز پیگیری‌ای برای این مشتری ثبت نشده.')); }
+    else{
+      const tl=el('div','timeline');
+      logs.forEach(l=>{
+        const entry=el('div','t-entry');
+        entry.innerHTML=`<div class="t-dot"></div><div class="t-card"><div class="t-date">${fmtDate(l.date)}${l.by?' — '+l.by:''}</div><div class="t-note">${l.note}</div>${l.nextPlan?`<div class="t-next">برنامه بعدی: ${l.nextPlan}${l.nextDate?' — '+fmtDate(l.nextDate):''}</div>`:''}</div>`;
+        tl.appendChild(entry);
+      });
+      main.appendChild(tl);
+    }
+  }
+}
+
+/* ===================== صفحه‌ی افزودن مشتری (تب جدا) ===================== */
+function renderAddPage(){
+  const main=$('#main'); main.innerHTML='';
+  const wrap=el('div','reg-page');
+  wrap.innerHTML=`
+    <div class="reg-title">افزودن مشتری جدید</div>
+    <div class="reg-sub">این مشتری بعد از ثبت، مستقیم در تب «در حال پیگیری» قرار می‌گیره. اگه همین الان هم باهاش تماس گرفتی، می‌تونی نتیجه‌ی پیگیری رو همین‌جا ثبت کنی.</div>
+    <div class="reg-card">
+      <div class="field" style="margin-bottom:12px;"><label>نام مشتری</label><input id="mName" placeholder="مثلاً: عادل رضایی"></div>
+      <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="mPhone" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
+      <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="mNationalId" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
+      <div class="field" style="margin-bottom:6px;"><label>منبع</label>
+        <select id="mSource">
+          <option value="mobin">انتقالی از مبین سرمایه</option>
+          <option value="pouyan_inactive">غیرفعال پویان</option>
+          <option value="other">سایر</option>
+        </select>
+      </div>
+    </div>
+    <div class="section-title"><span class="dot"></span> ثبت پیگیری اولیه (اختیاری)</div>
+    <div class="reg-card">
+      <div class="form-grid">
+        <div class="field"><label>تاریخ تماس</label>${buildDatePicker('mFDate', todayStr())}</div>
+        <div class="field"><label>تاریخ پیگیری بعدی</label>${buildDatePicker('mFNextDate', null)}</div>
+        <div class="field full"><label>نتیجه پیگیری</label><textarea id="mFNote" placeholder="مثلاً: تماس گرفتم، گفت هفته دیگه تصمیم می‌گیره..."></textarea></div>
+        <div class="field full"><label>برنامه برای دفعه بعد</label><textarea id="mFPlan" placeholder="مثلاً: یادآوری تماس تلفنی، ارسال فرم انتقال کد..."></textarea></div>
+      </div>
+    </div>
+    <div class="reg-actions"><button class="reg-save" id="mSave">افزودن مشتری</button></div>
+  `;
+  main.appendChild(wrap);
+  wrap.querySelector('#mSave').addEventListener('click', async()=>{
+    const name=wrap.querySelector('#mName').value.trim();
+    if(!name){ showToast('نام مشتری رو وارد کن'); return; }
+    const id='c'+Date.now();
+    const followups=[];
+    const fNote = wrap.querySelector('#mFNote').value.trim();
+    if(fNote){
+      const fDate = readDatePicker('mFDate') || todayStr();
+      const fNextDate = readDatePicker('mFNextDate');
+      const fPlan = wrap.querySelector('#mFPlan').value.trim() || null;
+      followups.push({id:'f'+Date.now(), date:fDate, note:fNote, nextDate:fNextDate, nextPlan:fPlan, by: currentUser || null});
+    }
+    DATA.clients[id]={
+      id, name,
+      phone:wrap.querySelector('#mPhone').value.trim(),
+      nationalId:wrap.querySelector('#mNationalId').value.trim(),
+      source:wrap.querySelector('#mSource').value,
+      status:'awaiting',
+      createdAt: todayStr(),
+      createdBy: currentUser || null,
+      followups
+    };
+    await saveData();
+    selectedId=id;
+    setActiveTab('awaiting');
+    render();
+    showToast('مشتری ثبت شد و در «در حال پیگیری» قرار گرفت');
+  });
+}
+
+function updateSidebarVisibility(){
+  $('#sidebarPanel').classList.toggle('hidden-panel', currentTab==='add' || currentTab==='users');
+}
+
+function setActiveTab(tab){
+  currentTab=tab;
+  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', done:'tabDone', users:'tabUsers'};
+  Object.keys(map).forEach(t=>{ $('#'+map[t]).classList.toggle('active', t===tab); });
+  updateSidebarVisibility();
+}
+
+function render(){ renderList(); renderMain(); }
+
+$('#searchBox').addEventListener('input', renderList);
+$('#tabToday').addEventListener('click', ()=>{ setActiveTab('today'); render(); });
+$('#tabAll').addEventListener('click', ()=>{ setActiveTab('all'); render(); });
+$('#tabAwaiting').addEventListener('click', ()=>{ setActiveTab('awaiting'); render(); });
+$('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=null; render(); });
+$('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
+$('#tabUsers').addEventListener('click', ()=>{ setActiveTab('users'); render(); });
+
+if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
+
+setInterval(async ()=>{
+  if(!currentUsername) return;
+  try{
+    const res = await sGet(STORE_KEY, true);
+    if(res && res.value) DATA = JSON.parse(res.value);
+    if(isAdmin) await loadAuthState();
+  }catch(e){ /* ignore transient errors */ }
+  renderList();
+  if(currentTab !== 'add'){
+    const active = document.activeElement;
+    const isTyping = active && (active.tagName==='TEXTAREA' || (active.tagName==='INPUT' && active.type==='text'));
+    if(!isTyping) renderMain();
+  }
+}, 20000);
+</script>
