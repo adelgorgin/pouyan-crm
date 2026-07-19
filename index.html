@@ -152,8 +152,14 @@
   }
   .save-log-btn:hover{background:var(--teal-deep);}
 
-  .date-picker{display:flex;gap:6px;}
-  .date-picker select{flex:1;min-width:0;}
+  .date-picker{
+    display:flex;gap:2px;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:2px;
+  }
+  .date-picker select{
+    flex:1;min-width:0;border:none;background:transparent;padding:7px 6px;
+    font-family:var(--font);font-size:13.5px;border-radius:6px;color:var(--ink);
+  }
+  .date-picker select:focus{outline:2px solid var(--teal-tint);outline-offset:-1px;}
 
   .timeline{position:relative;margin-top:16px;padding-inline-start:0;}
   .t-entry{position:relative;padding-inline-end:26px;padding-bottom:20px;}
