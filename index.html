@@ -171,6 +171,9 @@
   .reg-title{font-size:18px;font-weight:800;margin-bottom:4px;}
   .reg-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px;}
   .reg-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;}
+  .add-layout{display:flex;gap:20px;align-items:flex-start;}
+  .add-layout>div{flex:1;min-width:0;}
+  @media (max-width:900px){ .add-layout{flex-direction:column;} }
   .reg-actions{display:flex;justify-content:flex-end;margin-top:6px;}
   .reg-save{padding:11px 26px;border:none;border-radius:9px;background:var(--teal);color:#fff;font-family:var(--font);font-weight:700;font-size:14px;cursor:pointer;}
   .reg-save:hover{background:var(--teal-deep);}
@@ -682,10 +685,16 @@ function clientNextInfo(c){
 }
 
 /* ===================== رندر لیست ===================== */
+function visibleClients(){
+  const all=Object.values(DATA.clients);
+  if(isAdmin) return all;
+  return all.filter(c=>c.createdByUsername===currentUsername);
+}
+
 function renderList(){
   const list=$('#clientList'); list.innerHTML='';
   const q=$('#searchBox').value.trim();
-  let entries=Object.values(DATA.clients).filter(c=>!q || c.name.includes(q) || (c.phone||'').includes(q) || (c.nationalId||'').includes(q));
+  let entries=visibleClients().filter(c=>!q || c.name.includes(q) || (c.phone||'').includes(q) || (c.nationalId||'').includes(q));
   entries=entries.map(c=>({c,next:clientNextInfo(c)}));
 
   if(currentTab==='today'){
@@ -728,7 +737,8 @@ function renderMain(){
   if(currentTab==='users'){ renderUsersTab(); return; }
   const main=$('#main'); main.innerHTML='';
   const c=DATA.clients[selectedId];
-  if(!c){
+  if(!c || (!isAdmin && c.createdByUsername!==currentUsername)){
+    selectedId=null;
     main.appendChild(el('div','placeholder','<b>یه مشتری رو از لیست انتخاب کن</b><span>یا از تب «افزودن مشتری» شروع کن</span>'));
     return;
   }
@@ -848,25 +858,31 @@ function renderAddPage(){
   wrap.innerHTML=`
     <div class="reg-title">افزودن مشتری جدید</div>
     <div class="reg-sub">این مشتری بعد از ثبت، مستقیم در تب «در حال پیگیری» قرار می‌گیره. اگه همین الان هم باهاش تماس گرفتی، می‌تونی نتیجه‌ی پیگیری رو همین‌جا ثبت کنی.</div>
-    <div class="reg-card">
-      <div class="field" style="margin-bottom:12px;"><label>نام مشتری</label><input id="mName" placeholder="مثلاً: عادل رضایی"></div>
-      <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="mPhone" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
-      <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="mNationalId" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
-      <div class="field" style="margin-bottom:6px;"><label>منبع</label>
-        <select id="mSource">
-          <option value="mobin">انتقالی از مبین سرمایه</option>
-          <option value="pouyan_inactive">غیرفعال پویان</option>
-          <option value="other">سایر</option>
-        </select>
+    <div class="add-layout">
+      <div>
+        <div class="reg-card">
+          <div class="field" style="margin-bottom:12px;"><label>نام مشتری</label><input id="mName" placeholder="مثلاً: عادل رضایی"></div>
+          <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="mPhone" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
+          <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="mNationalId" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
+          <div class="field" style="margin-bottom:6px;"><label>منبع</label>
+            <select id="mSource">
+              <option value="mobin">انتقالی از مبین سرمایه</option>
+              <option value="pouyan_inactive">غیرفعال پویان</option>
+              <option value="other">سایر</option>
+            </select>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="section-title"><span class="dot"></span> ثبت پیگیری اولیه (اختیاری)</div>
-    <div class="reg-card">
-      <div class="form-grid">
-        <div class="field"><label>تاریخ تماس</label>${buildDatePicker('mFDate', todayStr())}</div>
-        <div class="field"><label>تاریخ پیگیری بعدی</label>${buildDatePicker('mFNextDate', null)}</div>
-        <div class="field full"><label>نتیجه پیگیری</label><textarea id="mFNote" placeholder="مثلاً: تماس گرفتم، گفت هفته دیگه تصمیم می‌گیره..."></textarea></div>
-        <div class="field full"><label>برنامه برای دفعه بعد</label><textarea id="mFPlan" placeholder="مثلاً: یادآوری تماس تلفنی، ارسال فرم انتقال کد..."></textarea></div>
+      <div>
+        <div class="section-title" style="margin-top:0;"><span class="dot"></span> ثبت پیگیری اولیه (اختیاری)</div>
+        <div class="reg-card">
+          <div class="form-grid">
+            <div class="field"><label>تاریخ تماس</label>${buildDatePicker('mFDate', todayStr())}</div>
+            <div class="field"><label>تاریخ پیگیری بعدی</label>${buildDatePicker('mFNextDate', null)}</div>
+            <div class="field full"><label>نتیجه پیگیری</label><textarea id="mFNote" placeholder="مثلاً: تماس گرفتم، گفت هفته دیگه تصمیم می‌گیره..."></textarea></div>
+            <div class="field full"><label>برنامه برای دفعه بعد</label><textarea id="mFPlan" placeholder="مثلاً: یادآوری تماس تلفنی، ارسال فرم انتقال کد..."></textarea></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="reg-actions"><button class="reg-save" id="mSave">افزودن مشتری</button></div>
@@ -875,6 +891,15 @@ function renderAddPage(){
   wrap.querySelector('#mSave').addEventListener('click', async()=>{
     const name=wrap.querySelector('#mName').value.trim();
     if(!name){ showToast('نام مشتری رو وارد کن'); return; }
+    const phone=wrap.querySelector('#mPhone').value.trim();
+    const nationalId=wrap.querySelector('#mNationalId').value.trim();
+
+    const isDup = Object.values(DATA.clients).some(c=>
+      (nationalId && c.nationalId && c.nationalId===nationalId) ||
+      (phone && c.phone && c.phone===phone)
+    );
+    if(isDup){ showToast('مشتری تکراری است'); return; }
+
     const id='c'+Date.now();
     const followups=[];
     const fNote = wrap.querySelector('#mFNote').value.trim();
@@ -886,12 +911,13 @@ function renderAddPage(){
     }
     DATA.clients[id]={
       id, name,
-      phone:wrap.querySelector('#mPhone').value.trim(),
-      nationalId:wrap.querySelector('#mNationalId').value.trim(),
+      phone,
+      nationalId,
       source:wrap.querySelector('#mSource').value,
       status:'awaiting',
       createdAt: todayStr(),
       createdBy: currentUser || null,
+      createdByUsername: currentUsername || null,
       followups
     };
     await saveData();
