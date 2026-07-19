@@ -744,11 +744,9 @@ function ownerDirectory(){
     const u=c.createdByUsername||'__unknown__';
     counts[u]=(counts[u]||0)+1;
   });
-  const known=new Set();
   const list=[];
-  if(ADMIN){ known.add(ADMIN.username); list.push({username:ADMIN.username, name:ownerName(ADMIN.username), count:counts[ADMIN.username]||0}); }
-  Object.keys(USERS).forEach(u=>{ known.add(u); list.push({username:u, name:ownerName(u), count:counts[u]||0}); });
-  if(counts['__unknown__']) list.push({username:'__unknown__', name:'نامشخص', count:counts['__unknown__']});
+  if(ADMIN){ list.push({username:ADMIN.username, name:ownerName(ADMIN.username), count:counts[ADMIN.username]||0}); }
+  Object.keys(USERS).forEach(u=>{ list.push({username:u, name:ownerName(u), count:counts[u]||0}); });
   return list.sort((a,b)=>a.name.localeCompare(b.name,'fa'));
 }
 function renderOwnerFilter(){
