@@ -153,10 +153,10 @@
   .save-log-btn:hover{background:var(--teal-deep);}
 
   .date-picker{
-    display:flex;gap:2px;border:1.5px solid #C7CFCD;border-radius:8px;background:#FFFFFF;padding:2px;
+    display:flex;gap:2px;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:2px;
   }
   .date-picker select{
-    flex:1;min-width:0;border:none;background:transparent;padding:8px 6px;
+    flex:1;min-width:0;border:none;background:transparent;padding:7px 9px;
     font-family:var(--font);font-size:13.5px;border-radius:6px;color:var(--ink);
   }
   .date-picker select:focus{outline:2px solid var(--teal-tint);outline-offset:-1px;}
@@ -488,10 +488,11 @@ async function loadAuthState(){
 function renderNavUser(){
   $('#navUser').textContent = currentUser ? ('کاربر: ' + currentUser + (isAdmin?' (مدیر)':'')) : '';
   $('#tabUsers').style.display = isAdmin ? 'block' : 'none';
+  $('#tabMarketers').style.display = isAdmin ? 'block' : 'none';
 }
 
 function showLogin(mode){ $('#loginOverlay').style.display='flex'; renderAuthBox(mode || (ADMIN ? 'login' : 'setup')); }
-function hideLogin(){ $('#loginOverlay').style.display='none'; }
+function hideLogin(){ $('#loginOverlay').style.display='none'; resetIdleTimer(); }
 
 let captchaAnswer=null;
 function genCaptcha(){
@@ -502,9 +503,20 @@ function genCaptcha(){
 function captchaBlock(){
   return `
     <div class="captcha-row" style="margin:10px 0;">
-      <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;">برای تایید اینکه ربات نیستی، حاصل جمع رو وارد کن: <b>${genCaptcha()}</b></label>
+      <label style="font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span>برای تایید اینکه ربات نیستی، حاصل جمع رو وارد کن: <b id="captchaQ">${genCaptcha()}</b></span>
+        <button type="button" id="captchaRefresh" title="یه سوال جدید بده" style="border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:14px;color:var(--teal);">↻</button>
+      </label>
       <input id="authCaptcha" inputmode="numeric" placeholder="جواب رو اینجا بنویس">
     </div>`;
+}
+function wireCaptchaRefresh(box){
+  const btn=box.querySelector('#captchaRefresh');
+  if(!btn) return;
+  btn.addEventListener('click', ()=>{
+    box.querySelector('#captchaQ').textContent = genCaptcha();
+    box.querySelector('#authCaptcha').value='';
+  });
 }
 function checkCaptcha(box){
   const v=box.querySelector('#authCaptcha').value.trim();
@@ -561,6 +573,7 @@ function renderAuthBox(mode){
       showToast('نام کاربری یا رمز اشتباهه');
     });
     box.querySelector('#goRequest').addEventListener('click', (e)=>{ e.preventDefault(); renderAuthBox('request'); });
+    wireCaptchaRefresh(box);
   } else if(mode==='request'){
     box.innerHTML=`
       <h2>درخواست دسترسی</h2>
@@ -585,6 +598,7 @@ function renderAuthBox(mode){
       renderAuthBox('pending-msg');
     });
     box.querySelector('#goLogin').addEventListener('click', (e)=>{ e.preventDefault(); renderAuthBox('login'); });
+    wireCaptchaRefresh(box);
   } else if(mode==='pending-msg'){
     box.innerHTML=`
       <h2>درخواست ثبت شد</h2>
@@ -611,12 +625,29 @@ async function initAuth(){
   else{ showLogin(); }
 }
 
-$('#tabLogout').addEventListener('click', async ()=>{
-  if(!confirm('از حساب خارج بشی؟')) return;
+/* ===================== خروج خودکار بعد از عدم فعالیت ===================== */
+const IDLE_LIMIT_MS = 5*60*1000;
+let idleTimer=null;
+async function doLogout(auto){
   try{ await sDelete(SESSION_KEY, false); }catch(e){}
-  currentUsername=null; currentUser=null; isAdmin=false; selectedId=null;
+  currentUsername=null; currentUser=null; isAdmin=false; selectedId=null; selectedMarketerId=null;
+  if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; }
   renderNavUser();
   showLogin('login');
+  if(auto) showToast('به‌خاطر عدم فعالیت، از حساب خارج شدی. دوباره وارد شو.');
+}
+function resetIdleTimer(){
+  if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; }
+  if(!currentUsername) return;
+  idleTimer=setTimeout(()=>doLogout(true), IDLE_LIMIT_MS);
+}
+['mousemove','mousedown','keydown','touchstart','scroll'].forEach(evt=>{
+  document.addEventListener(evt, resetIdleTimer, {passive:true});
+});
+
+$('#tabLogout').addEventListener('click', async ()=>{
+  if(!confirm('از حساب خارج بشی؟')) return;
+  await doLogout(false);
 });
 
 /* ===================== تب مدیریت دسترسی‌ها (فقط مدیر) ===================== */
@@ -708,10 +739,15 @@ function ownerName(username){
 function ownerDirectory(){
   const counts={};
   Object.values(DATA.clients).forEach(c=>{
-    const u=c.createdByUsername||'نامشخص';
+    const u=c.createdByUsername||'__unknown__';
     counts[u]=(counts[u]||0)+1;
   });
-  return Object.keys(counts).map(u=>({username:u, name:ownerName(u), count:counts[u]})).sort((a,b)=>a.name.localeCompare(b.name,'fa'));
+  const known=new Set();
+  const list=[];
+  if(ADMIN){ known.add(ADMIN.username); list.push({username:ADMIN.username, name:ownerName(ADMIN.username), count:counts[ADMIN.username]||0}); }
+  Object.keys(USERS).forEach(u=>{ known.add(u); list.push({username:u, name:ownerName(u), count:counts[u]||0}); });
+  if(counts['__unknown__']) list.push({username:'__unknown__', name:'نامشخص', count:counts['__unknown__']});
+  return list.sort((a,b)=>a.name.localeCompare(b.name,'fa'));
 }
 function renderOwnerFilter(){
   const sel=$('#ownerFilter');
@@ -729,6 +765,7 @@ function visibleClients(){
   const all=Object.values(DATA.clients);
   if(!isAdmin) return all.filter(c=>c.createdByUsername===currentUsername);
   if(ownerFilter==='all') return all;
+  if(ownerFilter==='__unknown__') return all.filter(c=>!c.createdByUsername);
   return all.filter(c=>c.createdByUsername===ownerFilter);
 }
 
@@ -804,6 +841,7 @@ function renderMarketerList(){
 
 function renderMarketerMain(){
   const main=$('#main'); main.innerHTML='';
+  if(!isAdmin){ main.appendChild(el('div','placeholder','<b>این بخش فقط برای مدیره</b>')); return; }
   const m = DATA.marketers[selectedMarketerId];
   if(!m){ renderMarketerAddForm(main); return; }
   renderMarketerDetail(main, m);
@@ -1166,7 +1204,7 @@ $('#tabAwaiting').addEventListener('click', ()=>{ setActiveTab('awaiting'); rend
 $('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=null; render(); });
 $('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
 $('#tabUsers').addEventListener('click', ()=>{ setActiveTab('users'); render(); });
-$('#tabMarketers').addEventListener('click', ()=>{ setActiveTab('marketers'); selectedMarketerId=null; render(); });
+$('#tabMarketers').addEventListener('click', ()=>{ if(!isAdmin) return; setActiveTab('marketers'); selectedMarketerId=null; render(); });
 
 if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
 
