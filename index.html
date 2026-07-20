@@ -236,6 +236,7 @@
       <button class="nav-tab-btn" data-tab="done" id="tabDone">ثبت‌نام‌شده‌ها</button>
       <button class="nav-tab-btn" data-tab="marketers" id="tabMarketers">بازاریاب‌ها</button>
       <button class="nav-tab-btn" data-tab="users" id="tabUsers" style="display:none;">مدیریت دسترسی‌ها</button>
+      <button class="nav-tab-btn" data-tab="security" id="tabSecurity">🔒 امنیت حساب</button>
       <div class="nav-spacer"></div>
       <button class="nav-tab-btn logout-btn" id="tabLogout">خروج از حساب</button>
     </nav>
@@ -477,12 +478,64 @@ async function saveData(){
 const AUTH_ADMIN_KEY='auth-admin', AUTH_USERS_KEY='auth-users', AUTH_PENDING_KEY='auth-pending', SESSION_KEY='session';
 let ADMIN=null, USERS={}, PENDING={};
 let currentUsername=null, isAdmin=false;
+let pending2FA=null;
 
 async function sha256(text){
   const enc=new TextEncoder().encode(text);
   const buf=await crypto.subtle.digest('SHA-256', enc);
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+
+/* ===================== تایید دومرحله‌ای (TOTP - سازگار با Google Authenticator / Authy) ===================== */
+const B32_ALPHABET='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32Encode(bytes){
+  let bits='', out='';
+  for(const b of bytes) bits += b.toString(2).padStart(8,'0');
+  for(let i=0;i+5<=bits.length;i+=5) out += B32_ALPHABET[parseInt(bits.substr(i,5),2)];
+  const rem=bits.length%5;
+  if(rem) out += B32_ALPHABET[parseInt(bits.substr(bits.length-rem).padEnd(5,'0'),2)];
+  return out;
+}
+function base32Decode(str){
+  str=str.replace(/=+$/,'').toUpperCase().replace(/\s/g,'');
+  let bits='';
+  for(const c of str){ const idx=B32_ALPHABET.indexOf(c); if(idx===-1) continue; bits+=idx.toString(2).padStart(5,'0'); }
+  const bytes=[];
+  for(let i=0;i+8<=bits.length;i+=8) bytes.push(parseInt(bits.substr(i,8),2));
+  return new Uint8Array(bytes);
+}
+function generateTotpSecret(){
+  const bytes=new Uint8Array(20);
+  crypto.getRandomValues(bytes);
+  return base32Encode(bytes);
+}
+async function hotp(secretBytes, counter){
+  const key=await crypto.subtle.importKey('raw', secretBytes, {name:'HMAC', hash:'SHA-1'}, false, ['sign']);
+  const buf=new ArrayBuffer(8);
+  const view=new DataView(buf);
+  const high=Math.floor(counter/Math.pow(2,32));
+  const low=counter>>>0;
+  view.setUint32(0, high);
+  view.setUint32(4, low);
+  const sig=await crypto.subtle.sign('HMAC', key, buf);
+  const b=new Uint8Array(sig);
+  const offset=b[b.length-1]&0xf;
+  const code=((b[offset]&0x7f)<<24)|((b[offset+1]&0xff)<<16)|((b[offset+2]&0xff)<<8)|(b[offset+3]&0xff);
+  return (code%1000000).toString().padStart(6,'0');
+}
+async function totpCode(secretBase32, forTime){
+  const counter=Math.floor((forTime===undefined?Date.now():forTime)/1000/30);
+  return hotp(base32Decode(secretBase32), counter);
+}
+async function verifyTotp(secretBase32, token){
+  if(!token || !/^\d{6}$/.test(token)) return false;
+  const now=Date.now();
+  for(const delta of [0,-1,1]){
+    if((await totpCode(secretBase32, now+delta*30000))===token) return true;
+  }
+  return false;
+}
+
 async function getShared(key){ try{ const r=await sGet(key,true); return r&&r.value?JSON.parse(r.value):null; }catch(e){ return null; } }
 async function setShared(key,val){ try{ await sSet(key, JSON.stringify(val), true); }catch(e){ showToast('خطا در ذخیره‌سازی'); } }
 
@@ -572,10 +625,12 @@ function renderAuthBox(mode){
       if(!checkCaptcha(box)){ renderAuthBox('login'); return; }
       const hash=await sha256(p);
       if(ADMIN && u===ADMIN.username && hash===ADMIN.passwordHash){
+        if(ADMIN.totpEnabled){ pending2FA={username:u, displayName:ADMIN.name||u, isAdmin:true, secret:ADMIN.totpSecret}; renderAuthBox('totp'); return; }
         currentUsername=u; currentUser=ADMIN.name||u; isAdmin=true;
         await setShared_session(u); hideLogin(); renderNavUser(); await loadData(); return;
       }
       if(USERS[u] && USERS[u].passwordHash===hash){
+        if(USERS[u].totpEnabled){ pending2FA={username:u, displayName:USERS[u].name||u, isAdmin:false, secret:USERS[u].totpSecret}; renderAuthBox('totp'); return; }
         currentUsername=u; currentUser=USERS[u].name||u; isAdmin=false;
         await setShared_session(u); hideLogin(); renderNavUser(); await loadData(); return;
       }
@@ -584,6 +639,25 @@ function renderAuthBox(mode){
     });
     box.querySelector('#goRequest').addEventListener('click', (e)=>{ e.preventDefault(); renderAuthBox('request'); });
     wireCaptchaRefresh(box);
+  } else if(mode==='totp'){
+    box.innerHTML=`
+      <h2>تایید دومرحله‌ای</h2>
+      <p>کد ۶ رقمی اپ Authenticator گوشیت رو وارد کن</p>
+      <input id="totpInput" inputmode="numeric" maxlength="6" placeholder="مثلاً: 123456">
+      <button id="totpSubmit">تایید و ورود</button>
+      <p style="margin-top:14px;"><a href="#" id="totpBack" style="color:var(--ink-soft);">بازگشت به صفحه‌ی ورود</a></p>
+    `;
+    box.querySelector('#totpSubmit').addEventListener('click', async ()=>{
+      if(!pending2FA){ renderAuthBox('login'); return; }
+      const code=box.querySelector('#totpInput').value.trim();
+      const ok=await verifyTotp(pending2FA.secret, code);
+      if(!ok){ showToast('کد اشتباهه'); return; }
+      currentUsername=pending2FA.username; currentUser=pending2FA.displayName; isAdmin=pending2FA.isAdmin;
+      pending2FA=null;
+      await setShared_session(currentUsername);
+      hideLogin(); renderNavUser(); await loadData();
+    });
+    box.querySelector('#totpBack').addEventListener('click', (e)=>{ e.preventDefault(); pending2FA=null; renderAuthBox('login'); });
   } else if(mode==='request'){
     box.innerHTML=`
       <h2>درخواست دسترسی</h2>
@@ -664,6 +738,66 @@ $('#tabLogout').addEventListener('click', async ()=>{
 });
 
 /* ===================== تب مدیریت دسترسی‌ها (فقط مدیر) ===================== */
+let pendingTotpSetup=null;
+async function persistAccountRecord(){
+  if(isAdmin) await setShared(AUTH_ADMIN_KEY, ADMIN);
+  else await setShared(AUTH_USERS_KEY, USERS);
+}
+function renderSecurityPage(){
+  const main=$('#main'); main.innerHTML='';
+  const wrap=el('div','reg-page');
+  const record = isAdmin ? ADMIN : USERS[currentUsername];
+  if(!record){ main.appendChild(el('div','placeholder','<b>خطا در بارگذاری حساب</b>')); return; }
+  const enabled = !!record.totpEnabled;
+
+  if(enabled){
+    wrap.innerHTML=`
+      <div class="reg-title">امنیت حساب</div>
+      <div class="reg-sub">تایید دومرحله‌ای برای حساب تو فعاله ✅</div>
+      <div class="reg-card">
+        <p style="margin:0 0 14px;color:var(--ink-soft);font-size:13.5px;">هر بار وارد می‌شی، بعد از یوزر/پسورد، یه کد ۶ رقمی از اپ Authenticator گوشیت هم ازت پرسیده می‌شه.</p>
+        <div class="field"><label>برای غیرفعال کردن، کد فعلی اپ رو وارد کن</label><input id="secDisableCode" inputmode="numeric" maxlength="6" placeholder="کد ۶ رقمی"></div>
+        <div class="reg-actions"><button class="reg-save" id="secDisableBtn" style="background:var(--brick);">غیرفعال‌سازی تایید دومرحله‌ای</button></div>
+      </div>
+    `;
+    main.appendChild(wrap);
+    wrap.querySelector('#secDisableBtn').addEventListener('click', async ()=>{
+      const code=wrap.querySelector('#secDisableCode').value.trim();
+      const ok=await verifyTotp(record.totpSecret, code);
+      if(!ok){ showToast('کد اشتباهه'); return; }
+      record.totpEnabled=false; record.totpSecret=null;
+      await persistAccountRecord();
+      showToast('تایید دومرحله‌ای غیرفعال شد');
+      renderSecurityPage();
+    });
+  } else {
+    if(!pendingTotpSetup) pendingTotpSetup=generateTotpSecret();
+    const secret=pendingTotpSetup;
+    wrap.innerHTML=`
+      <div class="reg-title">امنیت حساب</div>
+      <div class="reg-sub">تایید دومرحله‌ای الان غیرفعاله. برای فعال‌سازی این مراحل رو انجام بده:</div>
+      <div class="reg-card">
+        <p style="color:var(--ink-soft);font-size:13.5px;">۱. اپ «Google Authenticator» (یا هر اپ مشابه مثل Authy) رو روی گوشیت نصب کن.<br>۲. داخل اپ، گزینه‌ی افزودن حساب و بعد «وارد کردن کلید دستی / Setup key» رو بزن و این کلید رو وارد کن:</p>
+        <div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-family:monospace;font-size:16px;letter-spacing:3px;text-align:center;margin:10px 0;direction:ltr;">${secret}</div>
+        <p style="color:var(--ink-soft);font-size:13.5px;">۳. کد ۶ رقمی که اپ نشون می‌ده رو اینجا وارد کن تا فعال بشه:</p>
+        <div class="field"><input id="secVerifyCode" inputmode="numeric" maxlength="6" placeholder="کد ۶ رقمی"></div>
+        <div class="reg-actions"><button class="reg-save" id="secEnableBtn">فعال‌سازی</button></div>
+      </div>
+    `;
+    main.appendChild(wrap);
+    wrap.querySelector('#secEnableBtn').addEventListener('click', async ()=>{
+      const code=wrap.querySelector('#secVerifyCode').value.trim();
+      const ok=await verifyTotp(secret, code);
+      if(!ok){ showToast('کد اشتباهه، دوباره از روی اپ چک کن'); return; }
+      record.totpEnabled=true; record.totpSecret=secret;
+      await persistAccountRecord();
+      pendingTotpSetup=null;
+      showToast('تایید دومرحله‌ای فعال شد ✅');
+      renderSecurityPage();
+    });
+  }
+}
+
 function renderUsersTab(){
   const main=$('#main'); main.innerHTML='';
   if(!isAdmin){ main.appendChild(el('div','placeholder','<b>این بخش فقط برای مدیره</b>')); return; }
@@ -1016,6 +1150,7 @@ function renderMain(){
   if(currentTab==='add'){ renderAddPage(); return; }
   if(currentTab==='users'){ renderUsersTab(); return; }
   if(currentTab==='marketers'){ renderMarketerMain(); return; }
+  if(currentTab==='security'){ renderSecurityPage(); return; }
   const main=$('#main'); main.innerHTML='';
   const c=DATA.clients[selectedId];
   if(!c || (!isAdmin && c.createdByUsername!==currentUsername)){
@@ -1226,12 +1361,12 @@ function renderAddPage(){
 }
 
 function updateSidebarVisibility(){
-  $('#sidebarPanel').classList.toggle('hidden-panel', currentTab==='add' || currentTab==='users');
+  $('#sidebarPanel').classList.toggle('hidden-panel', currentTab==='add' || currentTab==='users' || currentTab==='security');
 }
 
 function setActiveTab(tab){
   currentTab=tab;
-  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', done:'tabDone', users:'tabUsers', marketers:'tabMarketers'};
+  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', done:'tabDone', users:'tabUsers', marketers:'tabMarketers', security:'tabSecurity'};
   Object.keys(map).forEach(t=>{ $('#'+map[t]).classList.toggle('active', t===tab); });
   updateSidebarVisibility();
 }
@@ -1246,6 +1381,7 @@ $('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=nul
 $('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
 $('#tabUsers').addEventListener('click', ()=>{ setActiveTab('users'); render(); });
 $('#tabMarketers').addEventListener('click', ()=>{ if(!canSeeMarketers()) return; setActiveTab('marketers'); selectedMarketerId=null; render(); });
+$('#tabSecurity').addEventListener('click', ()=>{ setActiveTab('security'); render(); });
 
 if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
 
