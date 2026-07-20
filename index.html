@@ -492,10 +492,13 @@ async function loadAuthState(){
   PENDING = (await getShared(AUTH_PENDING_KEY)) || {};
 }
 
+function canSeeMarketers(){
+  return isAdmin || !!(currentUsername && USERS[currentUsername] && USERS[currentUsername].canManageMarketers);
+}
 function renderNavUser(){
   $('#navUser').textContent = currentUser ? ('کاربر: ' + currentUser + (isAdmin?' (مدیر)':'')) : '';
   $('#tabUsers').style.display = isAdmin ? 'block' : 'none';
-  $('#tabMarketers').style.display = isAdmin ? 'block' : 'none';
+  $('#tabMarketers').style.display = canSeeMarketers() ? 'block' : 'none';
 }
 
 function showLogin(mode){ $('#loginOverlay').style.display='flex'; renderAuthBox(mode || (ADMIN ? 'login' : 'setup')); }
@@ -683,7 +686,13 @@ function renderUsersTab(){
     ? `<div class="no-log">هنوز کاربری تایید نشده.</div>`
     : userKeys.map(u=>`
       <div class="t-card" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div><b>${USERS[u].name}</b> <span style="color:var(--ink-soft);font-size:12px;">(نام کاربری: ${u})</span></div>
+        <div>
+          <div><b>${USERS[u].name}</b> <span style="color:var(--ink-soft);font-size:12px;">(نام کاربری: ${u})</span></div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft);margin-top:6px;cursor:pointer;">
+            <input type="checkbox" data-marketer-access="${u}" ${USERS[u].canManageMarketers?'checked':''}>
+            دسترسی به تب «بازاریاب‌ها»
+          </label>
+        </div>
         <button class="icon-btn" data-revoke="${u}">حذف دسترسی</button>
       </div>`).join('');
 
@@ -713,6 +722,14 @@ function renderUsersTab(){
       delete PENDING[u];
       await setShared(AUTH_PENDING_KEY, PENDING);
       showToast('درخواست رد شد'); renderUsersTab();
+    });
+  });
+  wrap.querySelectorAll('[data-marketer-access]').forEach(chk=>{
+    chk.addEventListener('change', async ()=>{
+      const u=chk.getAttribute('data-marketer-access');
+      USERS[u].canManageMarketers = chk.checked;
+      await setShared(AUTH_USERS_KEY, USERS);
+      showToast(chk.checked ? 'دسترسی داده شد' : 'دسترسی حذف شد');
     });
   });
   wrap.querySelectorAll('[data-revoke]').forEach(btn=>{
@@ -849,7 +866,7 @@ function renderMarketerList(){
 
 function renderMarketerMain(){
   const main=$('#main'); main.innerHTML='';
-  if(!isAdmin){ main.appendChild(el('div','placeholder','<b>این بخش فقط برای مدیره</b>')); return; }
+  if(!canSeeMarketers()){ main.appendChild(el('div','placeholder','<b>این بخش فقط برای افراد مجازه</b>')); return; }
   const m = DATA.marketers[selectedMarketerId];
   if(!m){ renderMarketerAddForm(main); return; }
   renderMarketerDetail(main, m);
@@ -1228,7 +1245,7 @@ $('#tabAwaiting').addEventListener('click', ()=>{ setActiveTab('awaiting'); rend
 $('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=null; render(); });
 $('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
 $('#tabUsers').addEventListener('click', ()=>{ setActiveTab('users'); render(); });
-$('#tabMarketers').addEventListener('click', ()=>{ if(!isAdmin) return; setActiveTab('marketers'); selectedMarketerId=null; render(); });
+$('#tabMarketers').addEventListener('click', ()=>{ if(!canSeeMarketers()) return; setActiveTab('marketers'); selectedMarketerId=null; render(); });
 
 if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
 
