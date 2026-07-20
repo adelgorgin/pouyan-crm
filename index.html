@@ -371,6 +371,7 @@ function readDatePicker(idPrefix){
 
 /* ===================== داده و ذخیره‌سازی ===================== */
 let DATA = { clients: {}, marketers: {} };
+let lastLocalSaveAt = 0;
 let selectedId = null;
 let selectedMarketerId = null;
 let currentTab = 'today';
@@ -464,7 +465,11 @@ async function loadData(){
   render();
 }
 async function saveData(){
-  try{ const r=await sSet(STORE_KEY, JSON.stringify(DATA), true); if(!r) showToast('خطا در ذخیره‌سازی'); }
+  try{
+    const r=await sSet(STORE_KEY, JSON.stringify(DATA), true);
+    if(!r) showToast('خطا در ذخیره‌سازی');
+    else lastLocalSaveAt=Date.now();
+  }
   catch(e){ showToast('خطا در ذخیره‌سازی — دوباره تلاش کن'); }
 }
 
@@ -494,7 +499,7 @@ function renderNavUser(){
 }
 
 function showLogin(mode){ $('#loginOverlay').style.display='flex'; renderAuthBox(mode || (ADMIN ? 'login' : 'setup')); }
-function hideLogin(){ $('#loginOverlay').style.display='none'; resetIdleTimer(); }
+function hideLogin(){ $('#loginOverlay').style.display='none'; markActivity(); }
 
 let captchaAnswer=null;
 function genCaptcha(){
@@ -627,25 +632,28 @@ async function initAuth(){
   else{ showLogin(); }
 }
 
-/* ===================== خروج خودکار بعد از عدم فعالیت ===================== */
+/* ===================== خروج خودکار بعد از عدم فعالیت =====================
+   از یه setTimeout ساده استفاده نمی‌کنیم چون تب‌های پس‌زمینه توی مرورگر تایمرها رو کند/معطل می‌کنن
+   و باعث می‌شه خروج با تاخیر و بعد از یه کلیک اتفاق بیفته. به‌جاش زمان واقعی رو چک می‌کنیم. */
 const IDLE_LIMIT_MS = 5*60*1000;
-let idleTimer=null;
+let lastActivityAt = Date.now();
 async function doLogout(auto){
   try{ await sDelete(SESSION_KEY, false); }catch(e){}
   currentUsername=null; currentUser=null; isAdmin=false; selectedId=null; selectedMarketerId=null;
-  if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; }
   renderNavUser();
   showLogin('login');
   if(auto) showToast('به‌خاطر عدم فعالیت، از حساب خارج شدی. دوباره وارد شو.');
 }
-function resetIdleTimer(){
-  if(idleTimer){ clearTimeout(idleTimer); idleTimer=null; }
+function markActivity(){ lastActivityAt = Date.now(); }
+function checkIdle(){
   if(!currentUsername) return;
-  idleTimer=setTimeout(()=>doLogout(true), IDLE_LIMIT_MS);
+  if(Date.now() - lastActivityAt >= IDLE_LIMIT_MS) doLogout(true);
 }
 ['mousemove','mousedown','keydown','touchstart','scroll'].forEach(evt=>{
-  document.addEventListener(evt, resetIdleTimer, {passive:true});
+  document.addEventListener(evt, markActivity, {passive:true});
 });
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkIdle(); });
+setInterval(checkIdle, 15000);
 
 $('#tabLogout').addEventListener('click', async ()=>{
   if(!confirm('از حساب خارج بشی؟')) return;
@@ -738,6 +746,12 @@ function ownerName(username){
   if(USERS[username]) return USERS[username].name||username;
   return username;
 }
+function supervisorOptions(){
+  const people=[];
+  if(ADMIN) people.push({username:ADMIN.username, name:ownerName(ADMIN.username)});
+  Object.keys(USERS).forEach(u=>people.push({username:u, name:ownerName(u)}));
+  return people.map(p=>`<option value="${p.username}" ${p.username===currentUsername?'selected':''}>${p.name}</option>`).join('');
+}
 function ownerDirectory(){
   const counts={};
   Object.values(DATA.clients).forEach(c=>{
@@ -771,8 +785,8 @@ function visibleClients(){
 
 function renderList(){
   $('#addMarketerBtn').style.display = currentTab==='marketers' ? 'block' : 'none';
-  if(currentTab==='marketers'){ renderMarketerList(); return; }
   renderOwnerFilter();
+  if(currentTab==='marketers'){ renderMarketerList(); return; }
   const list=$('#clientList'); list.innerHTML='';
   const q=$('#searchBox').value.trim();
   let entries=visibleClients().filter(c=>!q || c.name.includes(q) || (c.phone||'').includes(q) || (c.nationalId||'').includes(q));
@@ -1127,6 +1141,10 @@ function renderAddPage(){
               <option value="other">سایر</option>
             </select>
           </div>
+          ${isAdmin ? `
+          <div class="field" style="margin-top:12px;"><label>تغییر ناظر (این مشتری مال کدوم کاربر ثبت بشه)</label>
+            <select id="mOwner">${supervisorOptions()}</select>
+          </div>` : ''}
         </div>
       </div>
       <div>
@@ -1165,6 +1183,8 @@ function renderAddPage(){
       const fPlan = wrap.querySelector('#mFPlan').value.trim() || null;
       followups.push({id:'f'+Date.now(), date:fDate, note:fNote, nextDate:fNextDate, nextPlan:fPlan, by: currentUser || null});
     }
+    const ownerUsername = (isAdmin && wrap.querySelector('#mOwner')) ? wrap.querySelector('#mOwner').value : currentUsername;
+    const ownerDisplayName = ownerName(ownerUsername);
     DATA.clients[id]={
       id, name,
       phone,
@@ -1172,8 +1192,8 @@ function renderAddPage(){
       source:wrap.querySelector('#mSource').value,
       status:'awaiting',
       createdAt: todayStr(),
-      createdBy: currentUser || null,
-      createdByUsername: currentUsername || null,
+      createdBy: ownerDisplayName || currentUser || null,
+      createdByUsername: ownerUsername || currentUsername || null,
       followups
     };
     await saveData();
@@ -1210,6 +1230,7 @@ if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
 
 setInterval(async ()=>{
   if(!currentUsername) return;
+  if(Date.now() - lastLocalSaveAt < 8000) return;
   try{
     const res = await sGet(STORE_KEY, true);
     if(res && res.value) DATA = JSON.parse(res.value);
