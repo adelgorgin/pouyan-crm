@@ -746,12 +746,6 @@ function ownerName(username){
   if(USERS[username]) return USERS[username].name||username;
   return username;
 }
-function supervisorOptions(){
-  const people=[];
-  if(ADMIN) people.push({username:ADMIN.username, name:ownerName(ADMIN.username)});
-  Object.keys(USERS).forEach(u=>people.push({username:u, name:ownerName(u)}));
-  return people.map(p=>`<option value="${p.username}" ${p.username===currentUsername?'selected':''}>${p.name}</option>`).join('');
-}
 function ownerDirectory(){
   const counts={};
   Object.values(DATA.clients).forEach(c=>{
@@ -1030,6 +1024,11 @@ function renderMain(){
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select class="pill-select" id="nazerSelect">
+          <option value="none">فاقد تغییر ناظر</option>
+          <option value="pending">در حال تایید تغییر ناظر</option>
+          <option value="done">اقدام شده</option>
+        </select>
         ${(!isDone && !isAwaiting) ? `<select class="pill-select" id="statusSelect">
           <option value="pending">در حال پیگیری</option>
           <option value="active">فعال</option>
@@ -1051,6 +1050,9 @@ function renderMain(){
     </div>
   `;
   main.appendChild(card);
+
+  card.querySelector('#nazerSelect').value = c.nazerStatus || 'none';
+  card.querySelector('#nazerSelect').addEventListener('change', async(e)=>{ c.nazerStatus=e.target.value; await saveData(); showToast('وضعیت تغییر ناظر به‌روزرسانی شد'); });
 
   if(!isDone && !isAwaiting){
     card.querySelector('#statusSelect').value = c.status || 'pending';
@@ -1141,10 +1143,13 @@ function renderAddPage(){
               <option value="other">سایر</option>
             </select>
           </div>
-          ${isAdmin ? `
-          <div class="field" style="margin-top:12px;"><label>تغییر ناظر (این مشتری مال کدوم کاربر ثبت بشه)</label>
-            <select id="mOwner">${supervisorOptions()}</select>
-          </div>` : ''}
+          <div class="field" style="margin-top:12px;"><label>تغییر ناظر</label>
+            <select id="mNazerStatus">
+              <option value="none">فاقد تغییر ناظر</option>
+              <option value="pending">در حال تایید تغییر ناظر</option>
+              <option value="done">اقدام شده</option>
+            </select>
+          </div>
         </div>
       </div>
       <div>
@@ -1183,17 +1188,16 @@ function renderAddPage(){
       const fPlan = wrap.querySelector('#mFPlan').value.trim() || null;
       followups.push({id:'f'+Date.now(), date:fDate, note:fNote, nextDate:fNextDate, nextPlan:fPlan, by: currentUser || null});
     }
-    const ownerUsername = (isAdmin && wrap.querySelector('#mOwner')) ? wrap.querySelector('#mOwner').value : currentUsername;
-    const ownerDisplayName = ownerName(ownerUsername);
     DATA.clients[id]={
       id, name,
       phone,
       nationalId,
       source:wrap.querySelector('#mSource').value,
+      nazerStatus: wrap.querySelector('#mNazerStatus').value,
       status:'awaiting',
       createdAt: todayStr(),
-      createdBy: ownerDisplayName || currentUser || null,
-      createdByUsername: ownerUsername || currentUsername || null,
+      createdBy: currentUser || null,
+      createdByUsername: currentUsername || null,
       followups
     };
     await saveData();
