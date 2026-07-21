@@ -537,7 +537,14 @@ async function verifyTotp(secretBase32, token){
 }
 
 async function getShared(key){ try{ const r=await sGet(key,true); return r&&r.value?JSON.parse(r.value):null; }catch(e){ return null; } }
-async function setShared(key,val){ try{ await sSet(key, JSON.stringify(val), true); }catch(e){ showToast('خطا در ذخیره‌سازی'); } }
+// برمی‌گردونه true/false تا فراخوان بتونه بفهمه ذخیره واقعاً روی سرور موفق بوده یا نه
+async function setShared(key,val){
+  try{
+    const r=await sSet(key, JSON.stringify(val), true);
+    if(!r){ showToast('خطا در ذخیره‌سازی — تغییرات روی سرور ثبت نشد'); return false; }
+    return true;
+  }catch(e){ showToast('خطا در ذخیره‌سازی — تغییرات روی سرور ثبت نشد'); return false; }
+}
 
 async function loadAuthState(){
   ADMIN = await getShared(AUTH_ADMIN_KEY);
@@ -740,8 +747,8 @@ $('#tabLogout').addEventListener('click', async ()=>{
 /* ===================== تب مدیریت دسترسی‌ها (فقط مدیر) ===================== */
 let pendingTotpSetup=null;
 async function persistAccountRecord(){
-  if(isAdmin) await setShared(AUTH_ADMIN_KEY, ADMIN);
-  else await setShared(AUTH_USERS_KEY, USERS);
+  if(isAdmin) return await setShared(AUTH_ADMIN_KEY, ADMIN);
+  else return await setShared(AUTH_USERS_KEY, USERS);
 }
 function renderSecurityPage(){
   const main=$('#main'); main.innerHTML='';
@@ -765,8 +772,10 @@ function renderSecurityPage(){
       const code=wrap.querySelector('#secDisableCode').value.trim();
       const ok=await verifyTotp(record.totpSecret, code);
       if(!ok){ showToast('کد اشتباهه'); return; }
+      const prevEnabled=record.totpEnabled, prevSecret=record.totpSecret;
       record.totpEnabled=false; record.totpSecret=null;
-      await persistAccountRecord();
+      const saved=await persistAccountRecord();
+      if(!saved){ record.totpEnabled=prevEnabled; record.totpSecret=prevSecret; renderSecurityPage(); return; }
       showToast('تایید دومرحله‌ای غیرفعال شد');
       renderSecurityPage();
     });
@@ -790,7 +799,8 @@ function renderSecurityPage(){
       const ok=await verifyTotp(secret, code);
       if(!ok){ showToast('کد اشتباهه، دوباره از روی اپ چک کن'); return; }
       record.totpEnabled=true; record.totpSecret=secret;
-      await persistAccountRecord();
+      const saved=await persistAccountRecord();
+      if(!saved){ record.totpEnabled=false; record.totpSecret=null; renderSecurityPage(); return; }
       pendingTotpSetup=null;
       showToast('تایید دومرحله‌ای فعال شد ✅');
       renderSecurityPage();
