@@ -192,6 +192,16 @@
   }
   .toast.show{opacity:1;}
 
+  .followup-banner{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:#FFF3D6;color:#8A5A00;border-bottom:1px solid #F2D99A;
+    padding:10px 20px;font-size:13.5px;font-weight:600;
+  }
+  .followup-banner button{
+    background:none;border:none;color:#8A5A00;font-size:15px;cursor:pointer;line-height:1;padding:4px;opacity:.7;
+  }
+  .followup-banner button:hover{opacity:1;}
+
   .who-tag{font-size:11px;color:var(--ink-soft);margin-top:6px;}
   .nav-spacer{flex:1;}
   .nav-tab-btn.logout-btn{color:#F3C9C4;}
@@ -230,7 +240,7 @@
       </div>
       <div class="nav-user" id="navUser"></div>
       <button class="nav-tab-btn active" data-tab="today" id="tabToday">امروز</button>
-      <button class="nav-tab-btn" data-tab="all" id="tabAll">همه مشتریان</button>
+      <button class="nav-tab-btn" data-tab="all" id="tabAll">مشتریان دارای تغییر ناظر</button>
       <button class="nav-tab-btn" data-tab="awaiting" id="tabAwaiting">در حال پیگیری</button>
       <button class="nav-tab-btn" data-tab="add" id="tabAdd">افزودن مشتری</button>
       <button class="nav-tab-btn" data-tab="done" id="tabDone">ثبت‌نام‌شده‌ها</button>
@@ -242,6 +252,10 @@
     </nav>
 
     <div class="content-col">
+      <div class="followup-banner" id="followupBanner" style="display:none;">
+        <span id="followupBannerText"></span>
+        <button id="followupBannerClose" aria-label="بستن">✕</button>
+      </div>
       <div class="layout">
         <div class="sidebar" id="sidebarPanel">
           <div class="sidebar-head">
@@ -464,6 +478,7 @@ async function loadData(){
   if(!DATA.clients) DATA.clients={};
   if(!DATA.marketers) DATA.marketers={};
   render();
+  checkFollowupNotifications();
 }
 async function saveData(){
   try{
@@ -472,6 +487,7 @@ async function saveData(){
     else lastLocalSaveAt=Date.now();
   }
   catch(e){ showToast('خطا در ذخیره‌سازی — دوباره تلاش کن'); }
+  checkFollowupNotifications();
 }
 
 /* ===================== احراز هویت (یوزر/پسورد + تایید مدیر) ===================== */
@@ -898,6 +914,56 @@ function clientNextInfo(c){
   return {nextDate:last.nextDate||null, plan:last.nextPlan||null};
 }
 
+/* ===================== نوتیفیکیشن پیگیری روز ===================== */
+function dueFollowupEntries(){
+  return visibleClients()
+    .filter(c=>c.status!=='completed' && c.status!=='awaiting')
+    .map(c=>({c, next:clientNextInfo(c)}))
+    .filter(e=>{
+      if(!e.next.nextDate) return false;
+      const st=statusOf(e.next.nextDate, e.c.status);
+      return st==='overdue' || st==='today';
+    });
+}
+function checkFollowupNotifications(){
+  if(!currentUsername) return;
+  const due = dueFollowupEntries();
+  const banner=$('#followupBanner'), text=$('#followupBannerText');
+  if(due.length>0){
+    text.textContent = due.length===1
+      ? `پیگیری «${due[0].c.name}» برای امروزه.`
+      : `${due.length} مشتری پیگیری امروز یا عقب‌افتاده دارن.`;
+    banner.style.display='flex';
+  } else {
+    banner.style.display='none';
+  }
+
+  if(!('Notification' in window)) return;
+  const dayKey='followupNotified_'+currentUsername+'_'+todayStr();
+  let notifiedIds=[];
+  try{ notifiedIds=JSON.parse(localStorage.getItem(dayKey)||'[]'); }catch(e){ notifiedIds=[]; }
+  const newOnes = due.filter(e=>!notifiedIds.includes(e.c.id));
+  if(newOnes.length===0) return;
+
+  const markNotified=()=>{ try{ localStorage.setItem(dayKey, JSON.stringify([...notifiedIds, ...newOnes.map(e=>e.c.id)])); }catch(e){} };
+  const fire=()=>{
+    try{
+      const title = newOnes.length===1 ? 'یادآوری پیگیری مشتری' : `یادآوری پیگیری ${newOnes.length} مشتری`;
+      const body = newOnes.length===1
+        ? `پیگیری «${newOnes[0].c.name}» برای امروزه.`
+        : newOnes.slice(0,3).map(e=>e.c.name).join('، ') + (newOnes.length>3?' و دیگران':'') + ' — پیگیری امروز دارن.';
+      new Notification(title, {body, tag:'followup-'+todayStr()});
+    }catch(e){}
+    markNotified();
+  };
+  if(Notification.permission==='granted'){ fire(); }
+  else if(Notification.permission!=='denied'){
+    Notification.requestPermission().then(p=>{ if(p==='granted') fire(); else markNotified(); });
+  } else {
+    markNotified();
+  }
+}
+
 /* ===================== رندر لیست ===================== */
 let ownerFilter='all';
 
@@ -957,7 +1023,7 @@ function renderList(){
     entries=entries.filter(e=>e.c.status==='awaiting');
     entries.sort((a,b)=>(b.c.createdAt||'').localeCompare(a.c.createdAt||''));
   } else if(currentTab==='all'){
-    entries=entries.filter(e=>e.c.status!=='completed' && e.c.status!=='awaiting');
+    entries=entries.filter(e=>e.c.nazerStatus && e.c.nazerStatus!=='none');
     entries.sort((a,b)=>a.c.name.localeCompare(b.c.name,'fa'));
   } else {
     entries=[];
@@ -966,7 +1032,7 @@ function renderList(){
   if(entries.length===0){
     let msg='هیچ مشتری‌ای اینجا نیست.';
     if(currentTab==='today') msg='هیچ پیگیری عقب‌افتاده یا برای امروز نداری. عالیه! 🌿';
-    if(currentTab==='all') msg='هنوز مشتری‌ای تایید نشده تا اینجا باشه.';
+    if(currentTab==='all') msg='هیچ مشتری‌ای دارای تغییر ناظر نیست.';
     if(currentTab==='awaiting') msg='مشتری‌ای در حال پیگیری نیست.';
     if(currentTab==='done') msg='هنوز هیچ مشتری‌ای تکمیل ثبت‌نام نشده.';
     list.appendChild(el('div','empty-note',msg));
@@ -1196,7 +1262,7 @@ function renderMain(){
           <option value="active">فعال</option>
           <option value="inactive">غیرفعال</option>
         </select>` : ''}
-        ${isAwaiting ? `<button class="icon-btn violet" id="approveBtn">انتقال به «همه مشتریان»</button>` : ''}
+        ${isAwaiting ? `<button class="icon-btn violet" id="approveBtn">انتقال به «ثبت‌نام‌شده‌ها»</button>` : ''}
         ${isDone
           ? `<button class="icon-btn gold" id="undoBtn">بازگردانی به لیست فعال</button>`
           : (!isAwaiting ? `<button class="icon-btn gold" id="completeBtn">✅ تکمیل ثبت‌نام / انتقال</button>` : '')}
@@ -1222,7 +1288,7 @@ function renderMain(){
   }
   if(isAwaiting){
     card.querySelector('#approveBtn').addEventListener('click', async()=>{
-      c.status='pending'; await saveData(); showToast('مشتری تایید شد و به «همه مشتریان» منتقل شد');
+      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast('مشتری تایید شد و به «ثبت‌نام‌شده‌ها» منتقل شد');
       renderMain(); renderList();
     });
   }
@@ -1404,10 +1470,14 @@ setInterval(async ()=>{
     if(isAdmin) await loadAuthState();
   }catch(e){ /* ignore transient errors */ }
   renderList();
+  checkFollowupNotifications();
   if(currentTab !== 'add'){
     const active = document.activeElement;
     const isTyping = active && (active.tagName==='TEXTAREA' || (active.tagName==='INPUT' && active.type==='text'));
     if(!isTyping) renderMain();
   }
 }, 20000);
+
+$('#followupBannerClose').addEventListener('click', ()=>{ $('#followupBanner').style.display='none'; });
+
 </script>
