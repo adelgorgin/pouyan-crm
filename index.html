@@ -1023,7 +1023,7 @@ function renderList(){
     entries=entries.filter(e=>e.c.status==='awaiting');
     entries.sort((a,b)=>(b.c.createdAt||'').localeCompare(a.c.createdAt||''));
   } else if(currentTab==='all'){
-    entries=entries.filter(e=>e.c.nazerStatus && e.c.nazerStatus!=='none');
+    entries=entries.filter(e=>e.c.status!=='completed' && e.c.nazerStatus && e.c.nazerStatus!=='none');
     entries.sort((a,b)=>a.c.name.localeCompare(b.c.name,'fa'));
   } else {
     entries=[];
