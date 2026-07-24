@@ -243,6 +243,7 @@
       <button class="nav-tab-btn" data-tab="all" id="tabAll">مشتریان دارای تغییر ناظر</button>
       <button class="nav-tab-btn" data-tab="awaiting" id="tabAwaiting">در حال پیگیری</button>
       <button class="nav-tab-btn" data-tab="add" id="tabAdd">افزودن مشتری</button>
+      <button class="nav-tab-btn" data-tab="misc" id="tabMisc">کارهای متفرقه</button>
       <button class="nav-tab-btn" data-tab="done" id="tabDone">بورس اوراق</button>
       <button class="nav-tab-btn" data-tab="kala" id="tabKala">بورس کالا</button>
       <button class="nav-tab-btn" data-tab="energy" id="tabEnergy">بورس انرژی</button>
@@ -478,6 +479,10 @@ function statusOf(nextDate, status){
 }
 const statusLabel = { overdue:'عقب‌افتاده', today:'امروز', upcoming:'در انتظار', none:'بدون برنامه', completed:'تکمیل‌شده', awaiting:'در حال پیگیری' };
 const sourceLabel = { mobin:'انتقالی از مبین', pouyan_inactive:'غیرفعال پویان', other:'سایر' };
+function isDueOrOverdue(nextDate){
+  if(!nextDate) return true;
+  return daysDiff(nextDate) <= 0;
+}
 
 async function loadData(){
   try{ const res = await sGet(STORE_KEY,true); if(res && res.value) DATA=JSON.parse(res.value); }
@@ -1043,7 +1048,7 @@ function renderList(){
     entries=entries.filter(e=>e.c.status==='completed' && marketOf(e.c)==='energy');
     entries.sort((a,b)=>(b.c.completedDate||'').localeCompare(a.c.completedDate||''));
   } else if(currentTab==='awaiting'){
-    entries=entries.filter(e=>e.c.status==='awaiting');
+    entries=entries.filter(e=>e.c.status==='awaiting' && isDueOrOverdue(e.next.nextDate));
     entries.sort((a,b)=>(b.c.createdAt||'').localeCompare(a.c.createdAt||''));
   } else if(currentTab==='all'){
     entries=entries.filter(e=>e.c.status!=='completed' && e.c.nazerStatus && e.c.nazerStatus!=='none');
@@ -1311,6 +1316,7 @@ function renderEditClientForm(c){
 }
 function renderMain(){
   if(currentTab==='add'){ renderAddPage(); return; }
+  if(currentTab==='misc'){ renderMiscPage(); return; }
   if(currentTab==='users'){ renderUsersTab(); return; }
   if(currentTab==='marketers'){ renderMarketerMain(); return; }
   if(currentTab==='security'){ renderSecurityPage(); return; }
@@ -1477,6 +1483,64 @@ function renderMain(){
   }
 }
 
+/* ===================== صفحه‌ی کارهای متفرقه (ثبت سریع پیگیری) ===================== */
+function renderMiscPage(){
+  const main=$('#main'); main.innerHTML='';
+  const wrap=el('div','reg-page reg-page-wide');
+  wrap.innerHTML=`
+    <div class="reg-title">کارهای متفرقه</div>
+    <div class="reg-sub">برای وقتی که یه مشتری (قبلی یا جدید) یه مشکل یا کار جدید پیش اومده و باید پیگیریش کنی. بعد از ثبت، توی تب «در حال پیگیری» قرار می‌گیره (سر موعدی که مشخص می‌کنی).</div>
+    <div class="add-layout">
+      <div>
+        <div class="reg-card">
+          <div class="field" style="margin-bottom:12px;"><label>نام و نام خانوادگی</label><input id="xName" placeholder="مثلاً: عادل رضایی"></div>
+          <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="xPhone" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
+        </div>
+      </div>
+      <div>
+        <div class="reg-card">
+          <div class="form-grid">
+            <div class="field"><label>تاریخ ثبت</label>${buildDatePicker('xDate', todayStr())}</div>
+            <div class="field"><label>تاریخ پیگیری بعدی</label>${buildDatePicker('xNextDate', todayStr())}</div>
+            <div class="field full"><label>موضوع / پیگیری</label><textarea id="xNote" placeholder="مثلاً: مشکل در ورود به پنل، نیاز به تماس مجدد..."></textarea></div>
+            <div class="field full"><label>برنامه برای دفعه بعد</label><textarea id="xPlan" placeholder="مثلاً: تماس تلفنی، پیگیری ایمیل..."></textarea></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="reg-actions"><button class="reg-save" id="xSaveBtn">ثبت</button></div>
+  `;
+  main.appendChild(wrap);
+  wrap.querySelector('#xSaveBtn').addEventListener('click', async()=>{
+    const name=wrap.querySelector('#xName').value.trim();
+    const note=wrap.querySelector('#xNote').value.trim();
+    if(!name){ showToast('نام مشتری رو وارد کن'); return; }
+    if(!note){ showToast('موضوع پیگیری رو بنویس'); return; }
+    const phone=wrap.querySelector('#xPhone').value.trim();
+    const date=readDatePicker('xDate') || todayStr();
+    const nextDate=readDatePicker('xNextDate');
+    const plan=wrap.querySelector('#xPlan').value.trim() || null;
+
+    const id='c'+Date.now();
+    DATA.clients[id]={
+      id, name, phone,
+      nationalId:'',
+      source:'other',
+      nazerStatus:'none',
+      market:'securities',
+      status:'awaiting',
+      createdAt: todayStr(),
+      createdBy: currentUser || null,
+      createdByUsername: currentUsername || null,
+      followups:[{id:'f'+Date.now(), date, note, nextDate, nextPlan:plan, by: currentUser || null}]
+    };
+    await saveData();
+    selectedId=id;
+    setActiveTab('awaiting');
+    render();
+    showToast('کار متفرقه ثبت شد');
+  });
+}
 /* ===================== صفحه‌ی افزودن مشتری (تب جدا) ===================== */
 function renderAddPage(){
   const main=$('#main'); main.innerHTML='';
@@ -1576,7 +1640,7 @@ function updateSidebarVisibility(){
 
 function setActiveTab(tab){
   currentTab=tab;
-  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', done:'tabDone', kala:'tabKala', energy:'tabEnergy', users:'tabUsers', marketers:'tabMarketers', security:'tabSecurity'};
+  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', misc:'tabMisc', done:'tabDone', kala:'tabKala', energy:'tabEnergy', users:'tabUsers', marketers:'tabMarketers', security:'tabSecurity'};
   Object.keys(map).forEach(t=>{ $('#'+map[t]).classList.toggle('active', t===tab); });
   updateSidebarVisibility();
 }
@@ -1588,6 +1652,7 @@ $('#tabToday').addEventListener('click', ()=>{ setActiveTab('today'); render(); 
 $('#tabAll').addEventListener('click', ()=>{ setActiveTab('all'); render(); });
 $('#tabAwaiting').addEventListener('click', ()=>{ setActiveTab('awaiting'); render(); });
 $('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=null; render(); });
+$('#tabMisc').addEventListener('click', ()=>{ setActiveTab('misc'); selectedId=null; render(); });
 $('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
 $('#tabKala').addEventListener('click', ()=>{ setActiveTab('kala'); render(); });
 $('#tabEnergy').addEventListener('click', ()=>{ setActiveTab('energy'); render(); });
