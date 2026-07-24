@@ -244,6 +244,8 @@
       <button class="nav-tab-btn" data-tab="awaiting" id="tabAwaiting">در حال پیگیری</button>
       <button class="nav-tab-btn" data-tab="add" id="tabAdd">افزودن مشتری</button>
       <button class="nav-tab-btn" data-tab="done" id="tabDone">ثبت‌نام‌شده‌ها</button>
+      <button class="nav-tab-btn" data-tab="kala" id="tabKala">بورس کالا</button>
+      <button class="nav-tab-btn" data-tab="energy" id="tabEnergy">بورس انرژی</button>
       <button class="nav-tab-btn" data-tab="marketers" id="tabMarketers">بازاریاب‌ها</button>
       <button class="nav-tab-btn" data-tab="users" id="tabUsers" style="display:none;">مدیریت دسترسی‌ها</button>
       <button class="nav-tab-btn" data-tab="security" id="tabSecurity">🔒 امنیت حساب</button>
@@ -390,6 +392,9 @@ let lastLocalSaveAt = 0;
 let selectedId = null;
 let selectedMarketerId = null;
 let currentTab = 'today';
+const MARKET_LABELS = { securities:'ثبت‌نام‌شده‌ها', kala:'بورس کالا', energy:'بورس انرژی' };
+const MARKET_TABS = { securities:'done', kala:'kala', energy:'energy' };
+function marketOf(c){ return c.market || 'securities'; }
 let currentUser = null;
 const STORE_KEY = 'crm-data';
 
@@ -1017,7 +1022,13 @@ function renderList(){
     entries=entries.filter(e=>e.c.status!=='completed' && e.c.status!=='awaiting' && e.next.nextDate && (statusOf(e.next.nextDate,e.c.status)==='overdue' || statusOf(e.next.nextDate,e.c.status)==='today'));
     entries.sort((a,b)=>(a.next.nextDate||'').localeCompare(b.next.nextDate||''));
   } else if(currentTab==='done'){
-    entries=entries.filter(e=>e.c.status==='completed');
+    entries=entries.filter(e=>e.c.status==='completed' && marketOf(e.c)==='securities');
+    entries.sort((a,b)=>(b.c.completedDate||'').localeCompare(a.c.completedDate||''));
+  } else if(currentTab==='kala'){
+    entries=entries.filter(e=>e.c.status==='completed' && marketOf(e.c)==='kala');
+    entries.sort((a,b)=>(b.c.completedDate||'').localeCompare(a.c.completedDate||''));
+  } else if(currentTab==='energy'){
+    entries=entries.filter(e=>e.c.status==='completed' && marketOf(e.c)==='energy');
     entries.sort((a,b)=>(b.c.completedDate||'').localeCompare(a.c.completedDate||''));
   } else if(currentTab==='awaiting'){
     entries=entries.filter(e=>e.c.status==='awaiting');
@@ -1035,6 +1046,8 @@ function renderList(){
     if(currentTab==='all') msg='هیچ مشتری‌ای دارای تغییر ناظر نیست.';
     if(currentTab==='awaiting') msg='مشتری‌ای در حال پیگیری نیست.';
     if(currentTab==='done') msg='هنوز هیچ مشتری‌ای تکمیل ثبت‌نام نشده.';
+    if(currentTab==='kala') msg='هنوز هیچ مشتری بورس کالایی تکمیل ثبت‌نام نشده.';
+    if(currentTab==='energy') msg='هنوز هیچ مشتری بورس انرژی‌ای تکمیل ثبت‌نام نشده.';
     list.appendChild(el('div','empty-note',msg));
     return;
   }
@@ -1248,6 +1261,7 @@ function renderMain(){
           <span><b>تلفن:</b> ${c.phone||'—'}</span>
           <span><b>کد ملی:</b> ${c.nationalId||'—'}</span>
           <span><b>منبع:</b> ${sourceLabel[c.source]||'—'}</span>
+          <span><b>نوع مشتری:</b> ${MARKET_LABELS[marketOf(c)]}</span>
           ${c.createdBy ? `<span><b>ثبت‌کننده:</b> ${c.createdBy}</span>` : ''}
         </div>
       </div>
@@ -1262,10 +1276,10 @@ function renderMain(){
           <option value="active">فعال</option>
           <option value="inactive">غیرفعال</option>
         </select>` : ''}
-        ${isAwaiting ? `<button class="icon-btn violet" id="approveBtn">انتقال به «ثبت‌نام‌شده‌ها»</button>` : ''}
+        ${isAwaiting ? `<button class="icon-btn violet" id="approveBtn">انتقال به «${MARKET_LABELS[marketOf(c)]}»</button>` : ''}
         ${isDone
           ? `<button class="icon-btn gold" id="undoBtn">بازگردانی به لیست فعال</button>`
-          : (!isAwaiting ? `<button class="icon-btn gold" id="completeBtn">✅ تکمیل ثبت‌نام / انتقال</button>` : '')}
+          : (!isAwaiting ? `<button class="icon-btn gold" id="completeBtn">✅ تکمیل ثبت‌نام / انتقال به «${MARKET_LABELS[marketOf(c)]}»</button>` : '')}
         <button class="icon-btn" id="deleteBtn">حذف مشتری</button>
       </div>
     </div>
@@ -1288,7 +1302,7 @@ function renderMain(){
   }
   if(isAwaiting){
     card.querySelector('#approveBtn').addEventListener('click', async()=>{
-      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast('مشتری تایید شد و به «ثبت‌نام‌شده‌ها» منتقل شد');
+      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast(`مشتری تایید شد و به «${MARKET_LABELS[marketOf(c)]}» منتقل شد`);
       renderMain(); renderList();
     });
   }
@@ -1299,7 +1313,7 @@ function renderMain(){
     });
   } else if(!isAwaiting){
     card.querySelector('#completeBtn').addEventListener('click', async()=>{
-      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast('مشتری به «ثبت‌نام‌شده‌ها» منتقل شد');
+      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast(`مشتری به «${MARKET_LABELS[marketOf(c)]}» منتقل شد`);
       renderMain(); renderList();
     });
   }
@@ -1357,7 +1371,7 @@ function renderAddPage(){
   const wrap=el('div','reg-page reg-page-wide');
   wrap.innerHTML=`
     <div class="reg-title">افزودن مشتری جدید</div>
-    <div class="reg-sub">این مشتری بعد از ثبت، مستقیم در تب «در حال پیگیری» قرار می‌گیره. اگه همین الان هم باهاش تماس گرفتی، می‌تونی نتیجه‌ی پیگیری رو همین‌جا ثبت کنی.</div>
+    <div class="reg-sub">این مشتری بعد از ثبت، مستقیم در تب «در حال پیگیری» قرار می‌گیره. بعد از تکمیل ثبت‌نام، بر اساس نوع مشتری، به تب «ثبت‌نام‌شده‌ها»، «بورس کالا» یا «بورس انرژی» منتقل می‌شه. اگه همین الان هم باهاش تماس گرفتی، می‌تونی نتیجه‌ی پیگیری رو همین‌جا ثبت کنی.</div>
     <div class="add-layout">
       <div>
         <div class="reg-card">
@@ -1376,6 +1390,13 @@ function renderAddPage(){
               <option value="none">فاقد تغییر ناظر</option>
               <option value="pending">در حال تایید تغییر ناظر</option>
               <option value="done">اقدام شده</option>
+            </select>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>نوع مشتری</label>
+            <select id="mMarket">
+              <option value="securities">اوراق</option>
+              <option value="kala">بورس کالا</option>
+              <option value="energy">بورس انرژی</option>
             </select>
           </div>
         </div>
@@ -1422,6 +1443,7 @@ function renderAddPage(){
       nationalId,
       source:wrap.querySelector('#mSource').value,
       nazerStatus: wrap.querySelector('#mNazerStatus').value,
+      market: wrap.querySelector('#mMarket').value,
       status:'awaiting',
       createdAt: todayStr(),
       createdBy: currentUser || null,
@@ -1442,7 +1464,7 @@ function updateSidebarVisibility(){
 
 function setActiveTab(tab){
   currentTab=tab;
-  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', done:'tabDone', users:'tabUsers', marketers:'tabMarketers', security:'tabSecurity'};
+  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', done:'tabDone', kala:'tabKala', energy:'tabEnergy', users:'tabUsers', marketers:'tabMarketers', security:'tabSecurity'};
   Object.keys(map).forEach(t=>{ $('#'+map[t]).classList.toggle('active', t===tab); });
   updateSidebarVisibility();
 }
@@ -1455,6 +1477,8 @@ $('#tabAll').addEventListener('click', ()=>{ setActiveTab('all'); render(); });
 $('#tabAwaiting').addEventListener('click', ()=>{ setActiveTab('awaiting'); render(); });
 $('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=null; render(); });
 $('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
+$('#tabKala').addEventListener('click', ()=>{ setActiveTab('kala'); render(); });
+$('#tabEnergy').addEventListener('click', ()=>{ setActiveTab('energy'); render(); });
 $('#tabUsers').addEventListener('click', ()=>{ setActiveTab('users'); render(); });
 $('#tabMarketers').addEventListener('click', ()=>{ if(!canSeeMarketers()) return; setActiveTab('marketers'); selectedMarketerId=null; render(); });
 $('#tabSecurity').addEventListener('click', ()=>{ setActiveTab('security'); render(); });
