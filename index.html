@@ -391,6 +391,7 @@ let DATA = { clients: {}, marketers: {} };
 let lastLocalSaveAt = 0;
 let selectedId = null;
 let selectedMarketerId = null;
+let editingClientId = null;
 let currentTab = 'today';
 const MARKET_LABELS = { securities:'بورس اوراق', kala:'بورس کالا', energy:'بورس انرژی' };
 const MARKET_TABS = { securities:'done', kala:'kala', energy:'energy' };
@@ -766,7 +767,14 @@ $('#tabLogout').addEventListener('click', async ()=>{
 });
 
 /* ===================== تب مدیریت دسترسی‌ها (فقط مدیر) ===================== */
-let pendingTotpSetup=null;
+function pendingTotpKey(){ return 'totpPending_'+currentUsername; }
+function getPendingTotpSetup(){
+  let v=null;
+  try{ v=localStorage.getItem(pendingTotpKey()); }catch(e){}
+  if(!v){ v=generateTotpSecret(); try{ localStorage.setItem(pendingTotpKey(), v); }catch(e){} }
+  return v;
+}
+function clearPendingTotpSetup(){ try{ localStorage.removeItem(pendingTotpKey()); }catch(e){} }
 async function persistAccountRecord(){
   if(isAdmin) return await setShared(AUTH_ADMIN_KEY, ADMIN);
   else return await setShared(AUTH_USERS_KEY, USERS);
@@ -801,20 +809,23 @@ function renderSecurityPage(){
       renderSecurityPage();
     });
   } else {
-    if(!pendingTotpSetup) pendingTotpSetup=generateTotpSecret();
-    const secret=pendingTotpSetup;
+    const secret=getPendingTotpSetup();
     wrap.innerHTML=`
       <div class="reg-title">امنیت حساب</div>
       <div class="reg-sub">تایید دومرحله‌ای الان غیرفعاله. برای فعال‌سازی این مراحل رو انجام بده:</div>
       <div class="reg-card">
-        <p style="color:var(--ink-soft);font-size:13.5px;">۱. اپ «Google Authenticator» (یا هر اپ مشابه مثل Authy) رو روی گوشیت نصب کن.<br>۲. داخل اپ، گزینه‌ی افزودن حساب و بعد «وارد کردن کلید دستی / Setup key» رو بزن و این کلید رو وارد کن:</p>
+        <p style="color:var(--ink-soft);font-size:13.5px;">۱. اپ «Google Authenticator» (یا هر اپ مشابه مثل Authy) رو روی گوشیت نصب کن.<br>۲. داخل اپ، گزینه‌ی افزودن حساب و بعد «وارد کردن کلید دستی / Setup key» رو بزن، نوعش رو «Time-based» بذار و این کلید رو دقیق (بدون فاصله) وارد کن:</p>
         <div style="background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-family:monospace;font-size:16px;letter-spacing:3px;text-align:center;margin:10px 0;direction:ltr;">${secret}</div>
         <p style="color:var(--ink-soft);font-size:13.5px;">۳. کد ۶ رقمی که اپ نشون می‌ده رو اینجا وارد کن تا فعال بشه:</p>
         <div class="field"><input id="secVerifyCode" inputmode="numeric" maxlength="6" placeholder="کد ۶ رقمی"></div>
         <div class="reg-actions"><button class="reg-save" id="secEnableBtn">فعال‌سازی</button></div>
+        <p style="margin-top:14px;"><a href="#" id="secRegenLink" style="color:var(--ink-soft);font-size:12.5px;">اگه توی اپ اشتباه ثبتش کردی یا کد قبول نمی‌کنه، اینجا بزن تا یه کلید تازه بسازیم</a></p>
       </div>
     `;
     main.appendChild(wrap);
+    wrap.querySelector('#secRegenLink').addEventListener('click', (e)=>{
+      e.preventDefault(); clearPendingTotpSetup(); renderSecurityPage();
+    });
     wrap.querySelector('#secEnableBtn').addEventListener('click', async ()=>{
       const code=wrap.querySelector('#secVerifyCode').value.trim();
       const ok=await verifyTotp(secret, code);
@@ -822,7 +833,7 @@ function renderSecurityPage(){
       record.totpEnabled=true; record.totpSecret=secret;
       const saved=await persistAccountRecord();
       if(!saved){ record.totpEnabled=false; record.totpSecret=null; renderSecurityPage(); return; }
-      pendingTotpSetup=null;
+      clearPendingTotpSetup();
       showToast('تایید دومرحله‌ای فعال شد ✅');
       renderSecurityPage();
     });
@@ -1235,6 +1246,68 @@ function renderMarketerDetail(main, m){
 }
 
 /* ===================== رندر پنل اصلی ===================== */
+function renderEditClientForm(c){
+  const main=$('#main'); main.innerHTML='';
+  const wrap=el('div','reg-page');
+  wrap.innerHTML=`
+    <div class="reg-title">ویرایش اطلاعات مشتری</div>
+    <div class="reg-sub">اطلاعات رو اصلاح کن و ذخیره کن. وضعیت پیگیری و تاریخچه‌ی تماس‌ها تغییری نمی‌کنه.</div>
+    <div class="add-layout">
+      <div>
+        <div class="reg-card">
+          <div class="field" style="margin-bottom:12px;"><label>نام مشتری</label><input id="eName" value="${c.name||''}" placeholder="مثلاً: عادل رضایی"></div>
+          <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="ePhone" value="${c.phone||''}" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
+          <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="eNationalId" value="${c.nationalId||''}" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
+          <div class="field" style="margin-bottom:6px;"><label>منبع</label>
+            <select id="eSource">
+              <option value="mobin">انتقالی از مبین سرمایه</option>
+              <option value="pouyan_inactive">غیرفعال پویان</option>
+              <option value="other">سایر</option>
+            </select>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>تغییر ناظر</label>
+            <select id="eNazerStatus">
+              <option value="none">فاقد تغییر ناظر</option>
+              <option value="pending">در حال تایید تغییر ناظر</option>
+              <option value="done">اقدام شده</option>
+            </select>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>نوع مشتری</label>
+            <select id="eMarket">
+              <option value="securities">بورس اوراق</option>
+              <option value="kala">بورس کالا</option>
+              <option value="energy">بورس انرژی</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="reg-actions">
+      <button class="icon-btn" id="editCancelBtn">انصراف</button>
+      <button class="reg-save" id="editSaveBtn">ذخیره تغییرات</button>
+    </div>
+  `;
+  main.appendChild(wrap);
+  wrap.querySelector('#eSource').value = c.source||'other';
+  wrap.querySelector('#eNazerStatus').value = c.nazerStatus||'none';
+  wrap.querySelector('#eMarket').value = marketOf(c);
+
+  wrap.querySelector('#editCancelBtn').addEventListener('click', ()=>{ editingClientId=null; renderMain(); });
+  wrap.querySelector('#editSaveBtn').addEventListener('click', async()=>{
+    const name=wrap.querySelector('#eName').value.trim();
+    if(!name){ showToast('نام مشتری رو وارد کن'); return; }
+    c.name=name;
+    c.phone=wrap.querySelector('#ePhone').value.trim();
+    c.nationalId=wrap.querySelector('#eNationalId').value.trim();
+    c.source=wrap.querySelector('#eSource').value;
+    c.nazerStatus=wrap.querySelector('#eNazerStatus').value;
+    c.market=wrap.querySelector('#eMarket').value;
+    editingClientId=null;
+    await saveData();
+    showToast('اطلاعات مشتری به‌روزرسانی شد');
+    renderMain(); renderList();
+  });
+}
 function renderMain(){
   if(currentTab==='add'){ renderAddPage(); return; }
   if(currentTab==='users'){ renderUsersTab(); return; }
@@ -1251,6 +1324,8 @@ function renderMain(){
   const st=statusOf(next.nextDate, c.status);
   const isDone = c.status==='completed';
   const isAwaiting = c.status==='awaiting';
+
+  if(editingClientId===c.id){ renderEditClientForm(c); return; }
 
   const card=el('div','client-card');
   card.innerHTML=`
@@ -1280,6 +1355,7 @@ function renderMain(){
         ${isDone
           ? `<button class="icon-btn gold" id="undoBtn">بازگردانی به لیست فعال</button>`
           : (!isAwaiting ? `<button class="icon-btn gold" id="completeBtn">✅ تکمیل ثبت‌نام / انتقال به «${MARKET_LABELS[marketOf(c)]}»</button>` : '')}
+        <button class="icon-btn" id="editInfoBtn">✏️ ویرایش اطلاعات</button>
         <button class="icon-btn" id="deleteBtn">حذف مشتری</button>
       </div>
     </div>
@@ -1317,6 +1393,9 @@ function renderMain(){
       renderMain(); renderList();
     });
   }
+  card.querySelector('#editInfoBtn').addEventListener('click', ()=>{
+    editingClientId=c.id; renderMain();
+  });
   card.querySelector('#deleteBtn').addEventListener('click', async()=>{
     if(confirm(`مطمئنی می‌خوای «${c.name}» رو حذف کنی؟ این کار قابل بازگشت نیست.`)){
       delete DATA.clients[c.id]; selectedId=null; await saveData(); renderList(); renderMain();
