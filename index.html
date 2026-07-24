@@ -392,6 +392,7 @@ let lastLocalSaveAt = 0;
 let selectedId = null;
 let selectedMarketerId = null;
 let editingClientId = null;
+let editingFollowupId = null;
 let currentTab = 'today';
 const MARKET_LABELS = { securities:'بورس اوراق', kala:'بورس کالا', energy:'بورس انرژی' };
 const MARKET_TABS = { securities:'done', kala:'kala', energy:'energy' };
@@ -1436,8 +1437,40 @@ function renderMain(){
       const tl=el('div','timeline');
       logs.forEach(l=>{
         const entry=el('div','t-entry');
-        entry.innerHTML=`<div class="t-dot"></div><div class="t-card"><div class="t-date">${fmtDate(l.date)}${l.by?' — '+l.by:''}</div><div class="t-note">${l.note}</div>${l.nextPlan?`<div class="t-next">برنامه بعدی: ${l.nextPlan}${l.nextDate?' — '+fmtDate(l.nextDate):''}</div>`:''}</div>`;
-        tl.appendChild(entry);
+        if(editingFollowupId===l.id){
+          entry.innerHTML=`<div class="t-dot"></div><div class="t-card">
+            <div class="form-grid">
+              <div class="field"><label>تاریخ تماس</label>${buildDatePicker('efd_'+l.id, l.date)}</div>
+              <div class="field"><label>تاریخ پیگیری بعدی</label>${buildDatePicker('efn_'+l.id, l.nextDate)}</div>
+              <div class="field full"><label>نتیجه پیگیری</label><textarea id="efNote_${l.id}">${l.note||''}</textarea></div>
+              <div class="field full"><label>برنامه برای دفعه بعد</label><textarea id="efPlan_${l.id}">${l.nextPlan||''}</textarea></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button class="icon-btn" id="efCancel_${l.id}">انصراف</button>
+              <button class="save-log-btn" id="efSave_${l.id}" style="margin-top:0;">ذخیره</button>
+            </div>
+          </div>`;
+          tl.appendChild(entry);
+          entry.querySelector('#efCancel_'+l.id).addEventListener('click', ()=>{ editingFollowupId=null; renderMain(); });
+          entry.querySelector('#efSave_'+l.id).addEventListener('click', async()=>{
+            const note=entry.querySelector('#efNote_'+l.id).value.trim();
+            if(!note){ showToast('نتیجه پیگیری رو بنویس'); return; }
+            l.date=readDatePicker('efd_'+l.id) || l.date;
+            l.nextDate=readDatePicker('efn_'+l.id);
+            l.note=note;
+            l.nextPlan=entry.querySelector('#efPlan_'+l.id).value.trim() || null;
+            editingFollowupId=null;
+            await saveData(); showToast('پیگیری به‌روزرسانی شد'); renderMain(); renderList();
+          });
+        } else {
+          entry.innerHTML=`<div class="t-dot"></div><div class="t-card">
+            <div class="t-date">${fmtDate(l.date)}${l.by?' — '+l.by:''} <button class="icon-btn t-edit-btn" id="tEdit_${l.id}" style="padding:2px 8px;font-size:11px;">✏️ ویرایش</button></div>
+            <div class="t-note">${l.note}</div>
+            ${l.nextPlan?`<div class="t-next">برنامه بعدی: ${l.nextPlan}${l.nextDate?' — '+fmtDate(l.nextDate):''}</div>`:''}
+          </div>`;
+          tl.appendChild(entry);
+          entry.querySelector('#tEdit_'+l.id).addEventListener('click', ()=>{ editingFollowupId=l.id; renderMain(); });
+        }
       });
       main.appendChild(tl);
     }
@@ -1482,7 +1515,7 @@ function renderAddPage(){
       </div>
       <div>
         <div class="reg-card">
-          <div class="section-title" style="margin-top:0;margin-bottom:14px;"><span class="dot"></span> ثبت پیگیری اولیه (اختیاری)</div>
+          <div class="section-title" style="margin-top:0;margin-bottom:14px;"><span class="dot"></span> ثبت پیگیری اولیه</div>
           <div class="form-grid">
             <div class="field"><label>تاریخ تماس</label>${buildDatePicker('mFDate', todayStr())}</div>
             <div class="field"><label>تاریخ پیگیری بعدی</label>${buildDatePicker('mFNextDate', todayStr())}</div>
