@@ -989,6 +989,7 @@ function checkFollowupNotifications(){
 /* ===================== رندر لیست ===================== */
 let ownerFilter='all';
 
+function assignedOf(c){ return c.assignedTo || c.createdByUsername || null; }
 function ownerName(username){
   if(!username) return 'نامشخص';
   if(ADMIN && username===ADMIN.username) return (ADMIN.name||username)+' (مدیر)';
@@ -998,7 +999,7 @@ function ownerName(username){
 function ownerDirectory(){
   const counts={};
   Object.values(DATA.clients).forEach(c=>{
-    const u=c.createdByUsername||'__unknown__';
+    const u=assignedOf(c)||'__unknown__';
     counts[u]=(counts[u]||0)+1;
   });
   const list=[];
@@ -1020,10 +1021,10 @@ $('#ownerFilter').addEventListener('change', ()=>{ ownerFilter=$('#ownerFilter')
 
 function visibleClients(){
   const all=Object.values(DATA.clients);
-  if(!isAdmin) return all.filter(c=>c.createdByUsername===currentUsername);
+  if(!isAdmin) return all.filter(c=>assignedOf(c)===currentUsername);
   if(ownerFilter==='all') return all;
-  if(ownerFilter==='__unknown__') return all.filter(c=>!c.createdByUsername);
-  return all.filter(c=>c.createdByUsername===ownerFilter);
+  if(ownerFilter==='__unknown__') return all.filter(c=>!assignedOf(c));
+  return all.filter(c=>assignedOf(c)===ownerFilter);
 }
 
 function renderList(){
@@ -1345,9 +1346,11 @@ function renderMain(){
           <span><b>منبع:</b> ${sourceLabel[c.source]||'—'}</span>
           <span><b>نوع مشتری:</b> ${MARKET_LABELS[marketOf(c)]}</span>
           ${c.createdBy ? `<span><b>ثبت‌کننده:</b> ${c.createdBy}</span>` : ''}
+          <span><b>مسئول پیگیری:</b> ${ownerName(assignedOf(c))}</span>
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        ${isAdmin ? `<select class="pill-select" id="assignSelect">${ownerDirectory().map(o=>`<option value="${o.username}">${o.name}</option>`).join('')}</select>` : ''}
         <select class="pill-select" id="nazerSelect">
           <option value="none">فاقد تغییر ناظر</option>
           <option value="pending">در حال تایید تغییر ناظر</option>
@@ -1378,6 +1381,17 @@ function renderMain(){
 
   card.querySelector('#nazerSelect').value = c.nazerStatus || 'none';
   card.querySelector('#nazerSelect').addEventListener('change', async(e)=>{ c.nazerStatus=e.target.value; await saveData(); showToast('وضعیت تغییر ناظر به‌روزرسانی شد'); });
+
+  if(isAdmin){
+    const assignSel=card.querySelector('#assignSelect');
+    assignSel.value = assignedOf(c) || '';
+    assignSel.addEventListener('change', async(e)=>{
+      c.assignedTo=e.target.value;
+      await saveData();
+      showToast(`مشتری به «${ownerName(c.assignedTo)}» واگذار شد`);
+      renderList(); renderMain();
+    });
+  }
 
   if(!isDone && !isAwaiting){
     card.querySelector('#statusSelect').value = c.status || 'pending';
@@ -1495,6 +1509,9 @@ function renderMiscPage(){
         <div class="reg-card">
           <div class="field" style="margin-bottom:12px;"><label>نام و نام خانوادگی</label><input id="xName" placeholder="مثلاً: عادل رضایی"></div>
           <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="xPhone" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
+          ${isAdmin ? `<div class="field"><label>واگذاری برای پیگیری به</label>
+            <select id="xAssignTo">${ownerDirectory().map(o=>`<option value="${o.username}" ${o.username===currentUsername?'selected':''}>${o.name}</option>`).join('')}</select>
+          </div>` : ''}
         </div>
       </div>
       <div>
@@ -1532,6 +1549,7 @@ function renderMiscPage(){
       createdAt: todayStr(),
       createdBy: currentUser || null,
       createdByUsername: currentUsername || null,
+      assignedTo: (isAdmin && wrap.querySelector('#xAssignTo')) ? wrap.querySelector('#xAssignTo').value : (currentUsername || null),
       followups:[{id:'f'+Date.now(), date, note, nextDate, nextPlan:plan, by: currentUser || null}]
     };
     await saveData();
@@ -1575,6 +1593,9 @@ function renderAddPage(){
               <option value="energy">بورس انرژی</option>
             </select>
           </div>
+          ${isAdmin ? `<div class="field" style="margin-top:12px;"><label>واگذاری برای پیگیری به</label>
+            <select id="mAssignTo">${ownerDirectory().map(o=>`<option value="${o.username}" ${o.username===currentUsername?'selected':''}>${o.name}</option>`).join('')}</select>
+          </div>` : ''}
         </div>
       </div>
       <div>
@@ -1624,6 +1645,7 @@ function renderAddPage(){
       createdAt: todayStr(),
       createdBy: currentUser || null,
       createdByUsername: currentUsername || null,
+      assignedTo: (isAdmin && wrap.querySelector('#mAssignTo')) ? wrap.querySelector('#mAssignTo').value : (currentUsername || null),
       followups
     };
     await saveData();
