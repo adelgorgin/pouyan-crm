@@ -470,8 +470,7 @@ function showBackendNotConfigured(){
 
 function statusOf(nextDate, status){
   if(status==='completed') return 'completed';
-  if(status==='awaiting') return 'awaiting';
-  if(!nextDate) return 'none';
+  if(!nextDate) return status==='awaiting' ? 'awaiting' : 'none';
   const diff = daysDiff(nextDate);
   if(diff<0) return 'overdue';
   if(diff===0) return 'today';
@@ -1323,7 +1322,7 @@ function renderMain(){
   if(currentTab==='security'){ renderSecurityPage(); return; }
   const main=$('#main'); main.innerHTML='';
   const c=DATA.clients[selectedId];
-  if(!c || (!isAdmin && c.createdByUsername!==currentUsername)){
+  if(!c || (!isAdmin && assignedOf(c)!==currentUsername)){
     selectedId=null;
     main.appendChild(el('div','placeholder','<b>یه مشتری رو از لیست انتخاب کن</b><span>یا از تب «افزودن مشتری» شروع کن</span>'));
     return;
