@@ -242,6 +242,7 @@
       <button class="nav-tab-btn active" data-tab="today" id="tabToday">امروز</button>
       <button class="nav-tab-btn" data-tab="all" id="tabAll">مشتریان دارای تغییر ناظر</button>
       <button class="nav-tab-btn" data-tab="awaiting" id="tabAwaiting">در حال پیگیری</button>
+      <button class="nav-tab-btn" data-tab="future" id="tabFuture">پیگیری‌های آینده</button>
       <button class="nav-tab-btn" data-tab="add" id="tabAdd">افزودن مشتری</button>
       <button class="nav-tab-btn" data-tab="misc" id="tabMisc">کارهای متفرقه</button>
       <button class="nav-tab-btn" data-tab="done" id="tabDone">بورس اوراق</button>
@@ -1055,6 +1056,9 @@ function renderList(){
   } else if(currentTab==='awaiting'){
     entries=entries.filter(e=>e.c.status==='awaiting' && isDueOrOverdue(e.next.nextDate));
     entries.sort((a,b)=>(b.c.createdAt||'').localeCompare(a.c.createdAt||''));
+  } else if(currentTab==='future'){
+    entries=entries.filter(e=>e.c.status!=='completed' && e.next.nextDate && daysDiff(e.next.nextDate) > 0);
+    entries.sort((a,b)=>(a.next.nextDate||'').localeCompare(b.next.nextDate||''));
   } else if(currentTab==='all'){
     entries=entries.filter(e=>e.c.status!=='completed' && e.c.nazerStatus && e.c.nazerStatus!=='none');
     entries.sort((a,b)=>a.c.name.localeCompare(b.c.name,'fa'));
@@ -1067,6 +1071,7 @@ function renderList(){
     if(currentTab==='today') msg='هیچ پیگیری عقب‌افتاده یا برای امروز نداری. عالیه! 🌿';
     if(currentTab==='all') msg='هیچ مشتری‌ای دارای تغییر ناظر نیست.';
     if(currentTab==='awaiting') msg='مشتری‌ای در حال پیگیری نیست.';
+    if(currentTab==='future') msg='هیچ پیگیری آینده‌ای ثبت نشده.';
     if(currentTab==='done') msg='هنوز هیچ مشتری‌ای تکمیل ثبت‌نام نشده.';
     if(currentTab==='kala') msg='هنوز هیچ مشتری بورس کالایی تکمیل ثبت‌نام نشده.';
     if(currentTab==='energy') msg='هنوز هیچ مشتری بورس انرژی‌ای تکمیل ثبت‌نام نشده.';
@@ -1741,7 +1746,7 @@ function updateSidebarVisibility(){
 
 function setActiveTab(tab){
   currentTab=tab;
-  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', add:'tabAdd', misc:'tabMisc', done:'tabDone', kala:'tabKala', energy:'tabEnergy', users:'tabUsers', marketers:'tabMarketers', security:'tabSecurity'};
+  const map={today:'tabToday', all:'tabAll', awaiting:'tabAwaiting', future:'tabFuture', add:'tabAdd', misc:'tabMisc', done:'tabDone', kala:'tabKala', energy:'tabEnergy', users:'tabUsers', marketers:'tabMarketers', security:'tabSecurity'};
   Object.keys(map).forEach(t=>{ $('#'+map[t]).classList.toggle('active', t===tab); });
   updateSidebarVisibility();
 }
@@ -1752,6 +1757,7 @@ $('#searchBox').addEventListener('input', renderList);
 $('#tabToday').addEventListener('click', ()=>{ setActiveTab('today'); render(); });
 $('#tabAll').addEventListener('click', ()=>{ setActiveTab('all'); render(); });
 $('#tabAwaiting').addEventListener('click', ()=>{ setActiveTab('awaiting'); render(); });
+$('#tabFuture').addEventListener('click', ()=>{ setActiveTab('future'); render(); });
 $('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=null; render(); });
 $('#tabMisc').addEventListener('click', ()=>{ setActiveTab('misc'); selectedId=null; render(); });
 $('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
@@ -1765,7 +1771,7 @@ if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
 
 setInterval(async ()=>{
   if(!currentUsername) return;
-  if(Date.now() - lastLocalSaveAt < 8000) return;
+  if(Date.now() - lastLocalSaveAt < 3000) return;
   const activeEl = document.activeElement;
   const isTyping = activeEl && (activeEl.tagName==='TEXTAREA' || (activeEl.tagName==='INPUT' && (activeEl.type==='text' || activeEl.type==='tel' || activeEl.type==='number')));
   if(isTyping) return; // کاربر داره تایپ می‌کنه — دیتا رو جایگزین نکن که چیزی گم نشه
@@ -1777,7 +1783,7 @@ setInterval(async ()=>{
   renderList();
   checkFollowupNotifications();
   if(currentTab !== 'add') renderMain();
-}, 20000);
+}, 8000);
 
 $('#followupBannerClose').addEventListener('click', ()=>{ $('#followupBanner').style.display='none'; });
 
