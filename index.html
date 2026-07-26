@@ -936,8 +936,7 @@ function showToast(msg){
 function clientNextInfo(c){
   const logs=c.followups||[];
   if(logs.length===0) return {nextDate:null, plan:null};
-  const sorted=[...logs].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const last=sorted[0];
+  const last=logs[logs.length-1];
   return {nextDate:last.nextDate||null, plan:last.nextPlan||null};
 }
 
