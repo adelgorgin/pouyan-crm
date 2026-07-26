@@ -1331,17 +1331,18 @@ function renderEditClientForm(c){
   wrap.querySelector('#editSaveBtn').addEventListener('click', async()=>{
     const name=wrap.querySelector('#eName').value.trim();
     if(!name){ showToast('نام مشتری رو وارد کن'); return; }
-    c.name=name;
-    c.phone=wrap.querySelector('#ePhone').value.trim();
-    c.nationalId=wrap.querySelector('#eNationalId').value.trim();
-    c.source=wrap.querySelector('#eSource').value;
-    c.nazerStatus=wrap.querySelector('#eNazerStatus').value;
-    c.market=wrap.querySelector('#eMarket').value;
-    c.requestedCredit=wrap.querySelector('#eReqCredit').value.trim();
-    c.prevBrokerCredit=wrap.querySelector('#ePrevCredit').value.trim();
-    c.monthlyFee=wrap.querySelector('#eMonthlyFee').value.trim();
-    c.onlineChargeCredit=wrap.querySelector('#eOnlineCredit').value.trim();
-    if(pendingEditExcel!==undefined) c.excelFile=pendingEditExcel;
+    const lc=DATA.clients[c.id]; if(!lc){ showToast('خطا — مشتری پیدا نشد'); return; }
+    lc.name=name;
+    lc.phone=wrap.querySelector('#ePhone').value.trim();
+    lc.nationalId=wrap.querySelector('#eNationalId').value.trim();
+    lc.source=wrap.querySelector('#eSource').value;
+    lc.nazerStatus=wrap.querySelector('#eNazerStatus').value;
+    lc.market=wrap.querySelector('#eMarket').value;
+    lc.requestedCredit=wrap.querySelector('#eReqCredit').value.trim();
+    lc.prevBrokerCredit=wrap.querySelector('#ePrevCredit').value.trim();
+    lc.monthlyFee=wrap.querySelector('#eMonthlyFee').value.trim();
+    lc.onlineChargeCredit=wrap.querySelector('#eOnlineCredit').value.trim();
+    if(pendingEditExcel!==undefined) lc.excelFile=pendingEditExcel;
     editingClientId=null;
     await saveData();
     showToast('اطلاعات مشتری به‌روزرسانی شد');
@@ -1423,37 +1424,41 @@ function renderMain(){
   main.appendChild(card);
 
   card.querySelector('#nazerSelect').value = c.nazerStatus || 'none';
-  card.querySelector('#nazerSelect').addEventListener('change', async(e)=>{ c.nazerStatus=e.target.value; await saveData(); showToast('وضعیت تغییر ناظر به‌روزرسانی شد'); });
+  card.querySelector('#nazerSelect').addEventListener('change', async(e)=>{ const lc=DATA.clients[c.id]; if(!lc) return; lc.nazerStatus=e.target.value; await saveData(); showToast('وضعیت تغییر ناظر به‌روزرسانی شد'); });
 
   if(isAdmin){
     const assignSel=card.querySelector('#assignSelect');
     assignSel.value = assignedOf(c) || '';
     assignSel.addEventListener('change', async(e)=>{
-      c.assignedTo=e.target.value;
+      const lc=DATA.clients[c.id]; if(!lc) return;
+      lc.assignedTo=e.target.value;
       await saveData();
-      showToast(`مشتری به «${ownerName(c.assignedTo)}» واگذار شد`);
+      showToast(`مشتری به «${ownerName(lc.assignedTo)}» واگذار شد`);
       renderList(); renderMain();
     });
   }
 
   if(!isDone && !isAwaiting){
     card.querySelector('#statusSelect').value = c.status || 'pending';
-    card.querySelector('#statusSelect').addEventListener('change', async(e)=>{ c.status=e.target.value; await saveData(); showToast('وضعیت به‌روزرسانی شد'); });
+    card.querySelector('#statusSelect').addEventListener('change', async(e)=>{ const lc=DATA.clients[c.id]; if(!lc) return; lc.status=e.target.value; await saveData(); showToast('وضعیت به‌روزرسانی شد'); });
   }
   if(isAwaiting){
     card.querySelector('#approveBtn').addEventListener('click', async()=>{
-      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast(`مشتری تایید شد و به «${MARKET_LABELS[marketOf(c)]}» منتقل شد`);
+      const lc=DATA.clients[c.id]; if(!lc) return;
+      lc.status='completed'; lc.completedDate=todayStr(); await saveData(); showToast(`مشتری تایید شد و به «${MARKET_LABELS[marketOf(lc)]}» منتقل شد`);
       renderMain(); renderList();
     });
   }
   if(isDone){
     card.querySelector('#undoBtn').addEventListener('click', async()=>{
-      c.status='pending'; delete c.completedDate; await saveData(); showToast('مشتری به لیست فعال برگشت');
+      const lc=DATA.clients[c.id]; if(!lc) return;
+      lc.status='pending'; delete lc.completedDate; await saveData(); showToast('مشتری به لیست فعال برگشت');
       renderMain(); renderList();
     });
   } else if(!isAwaiting){
     card.querySelector('#completeBtn').addEventListener('click', async()=>{
-      c.status='completed'; c.completedDate=todayStr(); await saveData(); showToast(`مشتری به «${MARKET_LABELS[marketOf(c)]}» منتقل شد`);
+      const lc=DATA.clients[c.id]; if(!lc) return;
+      lc.status='completed'; lc.completedDate=todayStr(); await saveData(); showToast(`مشتری به «${MARKET_LABELS[marketOf(lc)]}» منتقل شد`);
       renderMain(); renderList();
     });
   }
@@ -1486,8 +1491,9 @@ function renderMain(){
       const nextDate = readDatePicker('fNextDate');
       const nextPlan = form.querySelector('#fPlan').value.trim() || null;
       if(!note){ showToast('نتیجه پیگیری رو بنویس'); return; }
-      c.followups=c.followups||[];
-      c.followups.push({id:'f'+Date.now(), date, note, nextDate, nextPlan, by: currentUser || null});
+      const liveC = DATA.clients[c.id] || c;
+      liveC.followups=liveC.followups||[];
+      liveC.followups.push({id:'f'+Date.now(), date, note, nextDate, nextPlan, by: currentUser || null});
       await saveData(); showToast('پیگیری ثبت شد'); renderMain(); renderList();
     });
   }
@@ -1518,10 +1524,12 @@ function renderMain(){
           entry.querySelector('#efSave_'+l.id).addEventListener('click', async()=>{
             const note=entry.querySelector('#efNote_'+l.id).value.trim();
             if(!note){ showToast('نتیجه پیگیری رو بنویس'); return; }
-            l.date=readDatePicker('efd_'+l.id) || l.date;
-            l.nextDate=readDatePicker('efn_'+l.id);
-            l.note=note;
-            l.nextPlan=entry.querySelector('#efPlan_'+l.id).value.trim() || null;
+            const lc=DATA.clients[c.id]; if(!lc){ showToast('خطا — مشتری پیدا نشد'); return; }
+            const ll=(lc.followups||[]).find(f=>f.id===l.id) || l;
+            ll.date=readDatePicker('efd_'+l.id) || ll.date;
+            ll.nextDate=readDatePicker('efn_'+l.id);
+            ll.note=note;
+            ll.nextPlan=entry.querySelector('#efPlan_'+l.id).value.trim() || null;
             editingFollowupId=null;
             await saveData(); showToast('پیگیری به‌روزرسانی شد'); renderMain(); renderList();
           });
@@ -1758,6 +1766,9 @@ if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
 setInterval(async ()=>{
   if(!currentUsername) return;
   if(Date.now() - lastLocalSaveAt < 8000) return;
+  const activeEl = document.activeElement;
+  const isTyping = activeEl && (activeEl.tagName==='TEXTAREA' || (activeEl.tagName==='INPUT' && (activeEl.type==='text' || activeEl.type==='tel' || activeEl.type==='number')));
+  if(isTyping) return; // کاربر داره تایپ می‌کنه — دیتا رو جایگزین نکن که چیزی گم نشه
   try{
     const res = await sGet(STORE_KEY, true);
     if(res && res.value) DATA = JSON.parse(res.value);
@@ -1765,11 +1776,7 @@ setInterval(async ()=>{
   }catch(e){ /* ignore transient errors */ }
   renderList();
   checkFollowupNotifications();
-  if(currentTab !== 'add'){
-    const active = document.activeElement;
-    const isTyping = active && (active.tagName==='TEXTAREA' || (active.tagName==='INPUT' && active.type==='text'));
-    if(!isTyping) renderMain();
-  }
+  if(currentTab !== 'add') renderMain();
 }, 20000);
 
 $('#followupBannerClose').addEventListener('click', ()=>{ $('#followupBanner').style.display='none'; });
