@@ -354,6 +354,12 @@ function fmtDate(iso){
   const j=jalaliFromIso(iso);
   return `${j.jd} ${JMONTHS[j.jm-1]} ${j.jy}`;
 }
+function fmtMoney(v){
+  if(v===undefined||v===null||v==='') return '—';
+  const n=Number(String(v).replace(/[^0-9.-]/g,''));
+  if(isNaN(n)) return v;
+  return n.toLocaleString('en-US')+' تومان';
+}
 function daysDiff(iso){
   if(!iso) return null;
   const [gy,gm,gd]=iso.split('-').map(Number);
@@ -1286,6 +1292,16 @@ function renderEditClientForm(c){
             </select>
           </div>
         </div>
+        <div class="reg-card" style="margin-top:16px;">
+          <div class="section-title" style="margin-top:0;margin-bottom:14px;"><span class="dot"></span> اطلاعات مالی</div>
+          <div class="form-grid">
+            <div class="field"><label>مبلغ اعتبار درخواستی (تومان)</label><input id="eReqCredit" value="${c.requestedCredit||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>مبلغ اعتبار در کارگزاری قبلی (تومان)</label><input id="ePrevCredit" value="${c.prevBrokerCredit||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>کارمزد ماهیانه (تومان)</label><input id="eMonthlyFee" value="${c.monthlyFee||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>مبلغ اعتبار سرخطی (شارژ آنلاین) (تومان)</label><input id="eOnlineCredit" value="${c.onlineChargeCredit||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field full"><label>اکسل گردش حساب مشتری${c.excelFile ? ' (فایل فعلی: '+c.excelFile.name+')' : ''}</label><input type="file" id="eExcelFile" accept=".xlsx,.xls,.csv"><div id="eExcelFileName" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="reg-actions">
@@ -1298,6 +1314,20 @@ function renderEditClientForm(c){
   wrap.querySelector('#eNazerStatus').value = c.nazerStatus||'none';
   wrap.querySelector('#eMarket').value = marketOf(c);
 
+  let pendingEditExcel = undefined;
+  wrap.querySelector('#eExcelFile').addEventListener('change', (e)=>{
+    const file=e.target.files[0];
+    if(!file){ pendingEditExcel=undefined; wrap.querySelector('#eExcelFileName').textContent=''; return; }
+    if(file.size > 3*1024*1024){ showToast('حجم فایل باید کمتر از ۳ مگابایت باشه'); e.target.value=''; pendingEditExcel=undefined; wrap.querySelector('#eExcelFileName').textContent=''; return; }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      pendingEditExcel={name:file.name, data:reader.result, uploadedAt: todayStr()};
+      wrap.querySelector('#eExcelFileName').textContent='فایل جدید انتخاب شد: '+file.name;
+    };
+    reader.onerror=()=>{ showToast('خطا در خواندن فایل'); pendingEditExcel=undefined; };
+    reader.readAsDataURL(file);
+  });
+
   wrap.querySelector('#editCancelBtn').addEventListener('click', ()=>{ editingClientId=null; renderMain(); });
   wrap.querySelector('#editSaveBtn').addEventListener('click', async()=>{
     const name=wrap.querySelector('#eName').value.trim();
@@ -1308,6 +1338,11 @@ function renderEditClientForm(c){
     c.source=wrap.querySelector('#eSource').value;
     c.nazerStatus=wrap.querySelector('#eNazerStatus').value;
     c.market=wrap.querySelector('#eMarket').value;
+    c.requestedCredit=wrap.querySelector('#eReqCredit').value.trim();
+    c.prevBrokerCredit=wrap.querySelector('#ePrevCredit').value.trim();
+    c.monthlyFee=wrap.querySelector('#eMonthlyFee').value.trim();
+    c.onlineChargeCredit=wrap.querySelector('#eOnlineCredit').value.trim();
+    if(pendingEditExcel!==undefined) c.excelFile=pendingEditExcel;
     editingClientId=null;
     await saveData();
     showToast('اطلاعات مشتری به‌روزرسانی شد');
@@ -1374,6 +1409,16 @@ function renderMain(){
         <div class="val">${isDone ? 'ثبت‌نام / انتقال تکمیل شده' + (c.completedDate ? ' — '+fmtDate(c.completedDate) : '') : (next.nextDate ? fmtDate(next.nextDate)+' — '+statusLabel[st] : 'برنامه‌ای ثبت نشده')}</div>
         ${(!isDone && next.plan) ? `<div class="plan">${next.plan}</div>` : ''}
       </div>
+    </div>
+    <div class="section-title" style="margin-bottom:10px;"><span class="dot"></span> اطلاعات مالی</div>
+    <div class="reg-card" style="margin-bottom:4px;">
+      <div class="meta-row" style="row-gap:10px;">
+        <span><b>اعتبار درخواستی:</b> ${fmtMoney(c.requestedCredit)}</span>
+        <span><b>اعتبار در کارگزاری قبلی:</b> ${fmtMoney(c.prevBrokerCredit)}</span>
+        <span><b>کارمزد ماهیانه:</b> ${fmtMoney(c.monthlyFee)}</span>
+        <span><b>اعتبار سرخطی (شارژ آنلاین):</b> ${fmtMoney(c.onlineChargeCredit)}</span>
+      </div>
+      ${c.excelFile ? `<div style="margin-top:10px;"><a href="${c.excelFile.data}" download="${c.excelFile.name}" class="icon-btn" style="text-decoration:none;display:inline-block;">📊 دانلود اکسل گردش حساب (${c.excelFile.name})</a></div>` : `<div style="margin-top:10px;color:var(--ink-soft);font-size:13px;">اکسل گردش حسابی آپلود نشده.</div>`}
     </div>
   `;
   main.appendChild(card);
@@ -1596,6 +1641,16 @@ function renderAddPage(){
             <select id="mAssignTo">${ownerDirectory().map(o=>`<option value="${o.username}" ${o.username===currentUsername?'selected':''}>${o.name}</option>`).join('')}</select>
           </div>` : ''}
         </div>
+        <div class="reg-card" style="margin-top:16px;">
+          <div class="section-title" style="margin-top:0;margin-bottom:14px;"><span class="dot"></span> اطلاعات مالی</div>
+          <div class="form-grid">
+            <div class="field"><label>مبلغ اعتبار درخواستی (تومان)</label><input id="mReqCredit" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>مبلغ اعتبار در کارگزاری قبلی (تومان)</label><input id="mPrevCredit" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>کارمزد ماهیانه (تومان)</label><input id="mMonthlyFee" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>مبلغ اعتبار سرخطی (شارژ آنلاین) (تومان)</label><input id="mOnlineCredit" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field full"><label>اکسل گردش حساب مشتری</label><input type="file" id="mExcelFile" accept=".xlsx,.xls,.csv"><div id="mExcelFileName" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div></div>
+          </div>
+        </div>
       </div>
       <div>
         <div class="reg-card">
@@ -1612,6 +1667,19 @@ function renderAddPage(){
     <div class="reg-actions"><button class="reg-save" id="mSave">افزودن مشتری</button></div>
   `;
   main.appendChild(wrap);
+  let pendingExcel = null;
+  wrap.querySelector('#mExcelFile').addEventListener('change', (e)=>{
+    const file=e.target.files[0];
+    if(!file){ pendingExcel=null; wrap.querySelector('#mExcelFileName').textContent=''; return; }
+    if(file.size > 3*1024*1024){ showToast('حجم فایل باید کمتر از ۳ مگابایت باشه'); e.target.value=''; pendingExcel=null; wrap.querySelector('#mExcelFileName').textContent=''; return; }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      pendingExcel={name:file.name, data:reader.result, uploadedAt: todayStr()};
+      wrap.querySelector('#mExcelFileName').textContent='فایل انتخاب شد: '+file.name;
+    };
+    reader.onerror=()=>{ showToast('خطا در خواندن فایل'); pendingExcel=null; };
+    reader.readAsDataURL(file);
+  });
   wrap.querySelector('#mSave').addEventListener('click', async()=>{
     const name=wrap.querySelector('#mName').value.trim();
     if(!name){ showToast('نام مشتری رو وارد کن'); return; }
@@ -1640,6 +1708,11 @@ function renderAddPage(){
       source:wrap.querySelector('#mSource').value,
       nazerStatus: wrap.querySelector('#mNazerStatus').value,
       market: wrap.querySelector('#mMarket').value,
+      requestedCredit: wrap.querySelector('#mReqCredit').value.trim(),
+      prevBrokerCredit: wrap.querySelector('#mPrevCredit').value.trim(),
+      monthlyFee: wrap.querySelector('#mMonthlyFee').value.trim(),
+      onlineChargeCredit: wrap.querySelector('#mOnlineCredit').value.trim(),
+      excelFile: pendingExcel,
       status:'awaiting',
       createdAt: todayStr(),
       createdBy: currentUser || null,
