@@ -1156,10 +1156,10 @@ function renderMarketerAddForm(main){
       createdByUsername: currentUsername || null,
       followups: []
     };
-    await saveData();
     selectedMarketerId=id;
     render();
     showToast('بازاریاب ثبت شد');
+    saveData();
   });
 }
 
@@ -1226,7 +1226,7 @@ function renderMarketerDetail(main, m){
     });
   }
 
-  wrap.querySelector('#eSave').addEventListener('click', async()=>{
+  wrap.querySelector('#eSave').addEventListener('click', ()=>{
     const name=wrap.querySelector('#eName').value.trim();
     if(!name){ showToast('نام بازاریاب رو وارد کن'); return; }
     m.name=name;
@@ -1234,12 +1234,12 @@ function renderMarketerDetail(main, m){
     m.commissionPercent=wrap.querySelector('#eCommission').value.trim();
     m.status=wrap.querySelector('#eStatus').value;
     m.contractType=wrap.querySelector('#eContract').value.trim();
-    await saveData();
     render();
     showToast('تغییرات ذخیره شد');
+    saveData();
   });
 
-  wrap.querySelector('#bLogBtn').addEventListener('click', async()=>{
+  wrap.querySelector('#bLogBtn').addEventListener('click', ()=>{
     const note=wrap.querySelector('#bNote').value.trim();
     if(!note){ showToast('نتیجه‌ی پیگیری رو بنویس'); return; }
     const date = readDatePicker('bDate') || todayStr();
@@ -1247,17 +1247,17 @@ function renderMarketerDetail(main, m){
     const nextPlan = wrap.querySelector('#bPlan').value.trim() || null;
     m.followups = m.followups || [];
     m.followups.push({id:'f'+Date.now(), date, note, nextDate, nextPlan, by: currentUser || null});
-    await saveData();
     render();
     showToast('پیگیری ثبت شد');
+    saveData();
   });
 
-  wrap.querySelector('#delMarketerBtn').addEventListener('click', async()=>{
+  wrap.querySelector('#delMarketerBtn').addEventListener('click', ()=>{
     if(!confirm('این بازاریاب حذف بشه؟ این کار قابل بازگشت نیست.')) return;
     delete DATA.marketers[m.id];
     selectedMarketerId=null;
-    await saveData();
     render();
+    saveData();
   });
 }
 
@@ -1349,9 +1349,9 @@ function renderEditClientForm(c){
     lc.onlineChargeCredit=wrap.querySelector('#eOnlineCredit').value.trim();
     if(pendingEditExcel!==undefined) lc.excelFile=pendingEditExcel;
     editingClientId=null;
-    await saveData();
     showToast('اطلاعات مشتری به‌روزرسانی شد');
     renderMain(); renderList();
+    saveData();
   });
 }
 function renderMain(){
@@ -1389,7 +1389,7 @@ function renderMain(){
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        ${isAdmin ? `<select class="pill-select" id="assignSelect">${ownerDirectory().map(o=>`<option value="${o.username}">${o.name}</option>`).join('')}</select>` : ''}
+        ${isAdmin ? `<span style="font-size:12.5px;color:var(--ink-soft);">واگذاری پیگیری به:</span><select class="pill-select" id="assignSelect">${ownerDirectory().map(o=>`<option value="${o.username}">${o.name}</option>`).join('')}</select>` : ''}
         <select class="pill-select" id="nazerSelect">
           <option value="none">فاقد تغییر ناظر</option>
           <option value="pending">در حال تایید تغییر ناظر</option>
@@ -1429,51 +1429,59 @@ function renderMain(){
   main.appendChild(card);
 
   card.querySelector('#nazerSelect').value = c.nazerStatus || 'none';
-  card.querySelector('#nazerSelect').addEventListener('change', async(e)=>{ const lc=DATA.clients[c.id]; if(!lc) return; lc.nazerStatus=e.target.value; await saveData(); showToast('وضعیت تغییر ناظر به‌روزرسانی شد'); });
+  card.querySelector('#nazerSelect').addEventListener('change', (e)=>{ const lc=DATA.clients[c.id]; if(!lc) return; lc.nazerStatus=e.target.value; showToast('وضعیت تغییر ناظر به‌روزرسانی شد'); renderList(); saveData(); });
 
   if(isAdmin){
     const assignSel=card.querySelector('#assignSelect');
     assignSel.value = assignedOf(c) || '';
-    assignSel.addEventListener('change', async(e)=>{
+    assignSel.addEventListener('change', (e)=>{
       const lc=DATA.clients[c.id]; if(!lc) return;
       lc.assignedTo=e.target.value;
-      await saveData();
       showToast(`مشتری به «${ownerName(lc.assignedTo)}» واگذار شد`);
       renderList(); renderMain();
+      saveData();
     });
   }
 
   if(!isDone && !isAwaiting){
     card.querySelector('#statusSelect').value = c.status || 'pending';
-    card.querySelector('#statusSelect').addEventListener('change', async(e)=>{ const lc=DATA.clients[c.id]; if(!lc) return; lc.status=e.target.value; await saveData(); showToast('وضعیت به‌روزرسانی شد'); });
+    card.querySelector('#statusSelect').addEventListener('change', (e)=>{ const lc=DATA.clients[c.id]; if(!lc) return; lc.status=e.target.value; showToast('وضعیت به‌روزرسانی شد'); renderList(); saveData(); });
   }
   if(isAwaiting){
-    card.querySelector('#approveBtn').addEventListener('click', async()=>{
+    card.querySelector('#approveBtn').addEventListener('click', ()=>{
       const lc=DATA.clients[c.id]; if(!lc) return;
-      lc.status='completed'; lc.completedDate=todayStr(); await saveData(); showToast(`مشتری تایید شد و به «${MARKET_LABELS[marketOf(lc)]}» منتقل شد`);
+      lc.status='completed'; lc.completedDate=todayStr();
+      showToast(`مشتری تایید شد و به «${MARKET_LABELS[marketOf(lc)]}» منتقل شد`);
       renderMain(); renderList();
+      saveData();
     });
   }
   if(isDone){
-    card.querySelector('#undoBtn').addEventListener('click', async()=>{
+    card.querySelector('#undoBtn').addEventListener('click', ()=>{
       const lc=DATA.clients[c.id]; if(!lc) return;
-      lc.status='pending'; delete lc.completedDate; await saveData(); showToast('مشتری به لیست فعال برگشت');
+      lc.status='pending'; delete lc.completedDate;
+      showToast('مشتری به لیست فعال برگشت');
       renderMain(); renderList();
+      saveData();
     });
   } else if(!isAwaiting){
-    card.querySelector('#completeBtn').addEventListener('click', async()=>{
+    card.querySelector('#completeBtn').addEventListener('click', ()=>{
       const lc=DATA.clients[c.id]; if(!lc) return;
-      lc.status='completed'; lc.completedDate=todayStr(); await saveData(); showToast(`مشتری به «${MARKET_LABELS[marketOf(lc)]}» منتقل شد`);
+      lc.status='completed'; lc.completedDate=todayStr();
+      showToast(`مشتری به «${MARKET_LABELS[marketOf(lc)]}» منتقل شد`);
       renderMain(); renderList();
+      saveData();
     });
   }
   card.querySelector('#editInfoBtn').addEventListener('click', ()=>{
     editingClientId=c.id; renderMain();
   });
-  card.querySelector('#deleteBtn').addEventListener('click', async()=>{
+  card.querySelector('#deleteBtn').addEventListener('click', ()=>{
     if(confirm(`مطمئنی می‌خوای «${c.name}» رو حذف کنی؟ این کار قابل بازگشت نیست.`)){
-      delete DATA.clients[c.id]; selectedId=null; await saveData(); renderList(); renderMain();
+      delete DATA.clients[c.id]; selectedId=null;
+      renderList(); renderMain();
       showToast('مشتری حذف شد');
+      saveData();
     }
   });
 
@@ -1490,7 +1498,7 @@ function renderMain(){
       <button class="save-log-btn" id="saveLogBtn">ثبت پیگیری</button>
     `;
     main.appendChild(form);
-    form.querySelector('#saveLogBtn').addEventListener('click', async()=>{
+    form.querySelector('#saveLogBtn').addEventListener('click', ()=>{
       const date = readDatePicker('fDate') || todayStr();
       const note = form.querySelector('#fNote').value.trim();
       const nextDate = readDatePicker('fNextDate');
@@ -1499,7 +1507,8 @@ function renderMain(){
       const liveC = DATA.clients[c.id] || c;
       liveC.followups=liveC.followups||[];
       liveC.followups.push({id:'f'+Date.now(), date, note, nextDate, nextPlan, by: currentUser || null});
-      await saveData(); showToast('پیگیری ثبت شد'); renderMain(); renderList();
+      showToast('پیگیری ثبت شد'); renderMain(); renderList();
+      saveData();
     });
   }
 
@@ -1526,7 +1535,7 @@ function renderMain(){
           </div>`;
           tl.appendChild(entry);
           entry.querySelector('#efCancel_'+l.id).addEventListener('click', ()=>{ editingFollowupId=null; renderMain(); });
-          entry.querySelector('#efSave_'+l.id).addEventListener('click', async()=>{
+          entry.querySelector('#efSave_'+l.id).addEventListener('click', ()=>{
             const note=entry.querySelector('#efNote_'+l.id).value.trim();
             if(!note){ showToast('نتیجه پیگیری رو بنویس'); return; }
             const lc=DATA.clients[c.id]; if(!lc){ showToast('خطا — مشتری پیدا نشد'); return; }
@@ -1536,7 +1545,8 @@ function renderMain(){
             ll.note=note;
             ll.nextPlan=entry.querySelector('#efPlan_'+l.id).value.trim() || null;
             editingFollowupId=null;
-            await saveData(); showToast('پیگیری به‌روزرسانی شد'); renderMain(); renderList();
+            showToast('پیگیری به‌روزرسانی شد'); renderMain(); renderList();
+            saveData();
           });
         } else {
           entry.innerHTML=`<div class="t-dot"></div><div class="t-card">
@@ -1608,11 +1618,11 @@ function renderMiscPage(){
       assignedTo: (isAdmin && wrap.querySelector('#xAssignTo')) ? wrap.querySelector('#xAssignTo').value : (currentUsername || null),
       followups:[{id:'f'+Date.now(), date, note, nextDate, nextPlan:plan, by: currentUser || null}]
     };
-    await saveData();
     selectedId=id;
     setActiveTab('awaiting');
     render();
     showToast('کار متفرقه ثبت شد');
+    saveData();
   });
 }
 /* ===================== صفحه‌ی افزودن مشتری (تب جدا) ===================== */
@@ -1732,11 +1742,11 @@ function renderAddPage(){
       assignedTo: (isAdmin && wrap.querySelector('#mAssignTo')) ? wrap.querySelector('#mAssignTo').value : (currentUsername || null),
       followups
     };
-    await saveData();
     selectedId=id;
     setActiveTab('awaiting');
     render();
     showToast('مشتری ثبت شد و در «در حال پیگیری» قرار گرفت');
+    saveData();
   });
 }
 
