@@ -361,6 +361,24 @@ function fmtMoney(v){
   if(isNaN(n)) return v;
   return n.toLocaleString('en-US')+' تومان';
 }
+function plainMoney(v){
+  if(v===undefined||v===null||v==='') return '';
+  const digits=String(v).replace(/[^\d]/g,'');
+  return digits ? Number(digits).toLocaleString('en-US') : '';
+}
+function attachMoneyInput(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('input', ()=>{
+    const digits=el.value.replace(/[^\d]/g,'');
+    el.value = digits ? Number(digits).toLocaleString('en-US') : '';
+  });
+}
+function readMoneyInput(id){
+  const el=document.getElementById(id);
+  if(!el) return '';
+  return el.value.replace(/[^\d]/g,'');
+}
 function daysDiff(iso){
   if(!iso) return null;
   const [gy,gm,gd]=iso.split('-').map(Number);
@@ -485,6 +503,21 @@ function statusOf(nextDate, status){
 }
 const statusLabel = { overdue:'عقب‌افتاده', today:'امروز', upcoming:'در انتظار', none:'بدون برنامه', completed:'تکمیل‌شده', awaiting:'در حال پیگیری' };
 const sourceLabel = { mobin:'انتقالی از مبین', pouyan_inactive:'غیرفعال پویان', other:'سایر' };
+function resolveSourceLabel(source){
+  if(!source) return '—';
+  if(sourceLabel[source]) return sourceLabel[source];
+  if(source.startsWith('marketer:')){
+    const mid=source.slice('marketer:'.length);
+    const mk=DATA.marketers && DATA.marketers[mid];
+    return mk ? (mk.name+' (بازاریاب)') : '—';
+  }
+  return '—';
+}
+function marketerOptionsHtml(){
+  return Object.values(DATA.marketers||{})
+    .sort((a,b)=>a.name.localeCompare(b.name,'fa'))
+    .map(m=>`<option value="marketer:${m.id}">${m.name} (بازاریاب)</option>`).join('');
+}
 function isDueOrOverdue(nextDate){
   if(!nextDate) return true;
   return daysDiff(nextDate) <= 0;
@@ -1274,18 +1307,19 @@ function renderEditClientForm(c){
           <div class="field" style="margin-bottom:12px;"><label>نام مشتری</label><input id="eName" value="${c.name||''}" placeholder="مثلاً: عادل رضایی"></div>
           <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="ePhone" value="${c.phone||''}" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
           <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="eNationalId" value="${c.nationalId||''}" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
-          <div class="field" style="margin-bottom:6px;"><label>منبع</label>
+          <div class="field" style="margin-bottom:6px;"><label>معرف</label>
             <select id="eSource">
               <option value="mobin">انتقالی از مبین سرمایه</option>
               <option value="pouyan_inactive">غیرفعال پویان</option>
+              ${marketerOptionsHtml()}
               <option value="other">سایر</option>
             </select>
           </div>
           <div class="field" style="margin-top:12px;"><label>تغییر ناظر</label>
             <select id="eNazerStatus">
-              <option value="none">فاقد تغییر ناظر</option>
-              <option value="pending">در حال تایید تغییر ناظر</option>
-              <option value="done">اقدام شده</option>
+              <option value="none">ثبت اولیه</option>
+              <option value="pending">در حال پردازش</option>
+              <option value="done">تکمیل‌شده</option>
             </select>
           </div>
           <div class="field" style="margin-top:12px;"><label>نوع مشتری</label>
@@ -1299,10 +1333,10 @@ function renderEditClientForm(c){
         <div class="reg-card" style="margin-top:16px;">
           <div class="section-title" style="margin-top:0;margin-bottom:14px;"><span class="dot"></span> اطلاعات مالی</div>
           <div class="form-grid">
-            <div class="field"><label>مبلغ اعتبار درخواستی (تومان)</label><input id="eReqCredit" value="${c.requestedCredit||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
-            <div class="field"><label>مبلغ اعتبار در کارگزاری قبلی (تومان)</label><input id="ePrevCredit" value="${c.prevBrokerCredit||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
-            <div class="field"><label>کارمزد ماهیانه (تومان)</label><input id="eMonthlyFee" value="${c.monthlyFee||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
-            <div class="field"><label>مبلغ اعتبار سرخطی (شارژ آنلاین) (تومان)</label><input id="eOnlineCredit" value="${c.onlineChargeCredit||''}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>مبلغ اعتبار درخواستی (تومان)</label><input id="eReqCredit" value="${plainMoney(c.requestedCredit)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>مبلغ اعتبار در کارگزاری قبلی (تومان)</label><input id="ePrevCredit" value="${plainMoney(c.prevBrokerCredit)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>کارمزد ماهیانه (تومان)</label><input id="eMonthlyFee" value="${plainMoney(c.monthlyFee)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>مبلغ اعتبار سرخطی (شارژ آنلاین) (تومان)</label><input id="eOnlineCredit" value="${plainMoney(c.onlineChargeCredit)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
             <div class="field full"><label>اکسل گردش حساب مشتری${c.excelFile ? ' (فایل فعلی: '+c.excelFile.name+')' : ''}</label><input type="file" id="eExcelFile" accept=".xlsx,.xls,.csv"><div id="eExcelFileName" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div></div>
           </div>
         </div>
@@ -1317,6 +1351,7 @@ function renderEditClientForm(c){
   wrap.querySelector('#eSource').value = c.source||'other';
   wrap.querySelector('#eNazerStatus').value = c.nazerStatus||'none';
   wrap.querySelector('#eMarket').value = marketOf(c);
+  ['eReqCredit','ePrevCredit','eMonthlyFee','eOnlineCredit'].forEach(attachMoneyInput);
 
   let pendingEditExcel = undefined;
   wrap.querySelector('#eExcelFile').addEventListener('change', (e)=>{
@@ -1343,10 +1378,10 @@ function renderEditClientForm(c){
     lc.source=wrap.querySelector('#eSource').value;
     lc.nazerStatus=wrap.querySelector('#eNazerStatus').value;
     lc.market=wrap.querySelector('#eMarket').value;
-    lc.requestedCredit=wrap.querySelector('#eReqCredit').value.trim();
-    lc.prevBrokerCredit=wrap.querySelector('#ePrevCredit').value.trim();
-    lc.monthlyFee=wrap.querySelector('#eMonthlyFee').value.trim();
-    lc.onlineChargeCredit=wrap.querySelector('#eOnlineCredit').value.trim();
+    lc.requestedCredit=readMoneyInput('eReqCredit');
+    lc.prevBrokerCredit=readMoneyInput('ePrevCredit');
+    lc.monthlyFee=readMoneyInput('eMonthlyFee');
+    lc.onlineChargeCredit=readMoneyInput('eOnlineCredit');
     if(pendingEditExcel!==undefined) lc.excelFile=pendingEditExcel;
     editingClientId=null;
     showToast('اطلاعات مشتری به‌روزرسانی شد');
@@ -1382,7 +1417,7 @@ function renderMain(){
         <div class="meta-row">
           <span><b>تلفن:</b> ${c.phone||'—'}</span>
           <span><b>کد ملی:</b> ${c.nationalId||'—'}</span>
-          <span><b>منبع:</b> ${sourceLabel[c.source]||'—'}</span>
+          <span><b>معرف:</b> ${resolveSourceLabel(c.source)}</span>
           <span><b>نوع مشتری:</b> ${MARKET_LABELS[marketOf(c)]}</span>
           ${c.createdBy ? `<span><b>ثبت‌کننده:</b> ${c.createdBy}</span>` : ''}
           <span><b>مسئول پیگیری:</b> ${ownerName(assignedOf(c))}</span>
@@ -1391,9 +1426,9 @@ function renderMain(){
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         ${isAdmin ? `<span style="font-size:12.5px;color:var(--ink-soft);">واگذاری پیگیری به:</span><select class="pill-select" id="assignSelect">${ownerDirectory().map(o=>`<option value="${o.username}">${o.name}</option>`).join('')}</select>` : ''}
         <select class="pill-select" id="nazerSelect">
-          <option value="none">فاقد تغییر ناظر</option>
-          <option value="pending">در حال تایید تغییر ناظر</option>
-          <option value="done">اقدام شده</option>
+          <option value="none">ثبت اولیه</option>
+          <option value="pending">در حال پردازش</option>
+          <option value="done">تکمیل‌شده</option>
         </select>
         ${(!isDone && !isAwaiting) ? `<select class="pill-select" id="statusSelect">
           <option value="pending">در حال پیگیری</option>
@@ -1638,18 +1673,19 @@ function renderAddPage(){
           <div class="field" style="margin-bottom:12px;"><label>نام مشتری</label><input id="mName" placeholder="مثلاً: عادل رضایی"></div>
           <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="mPhone" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
           <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="mNationalId" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
-          <div class="field" style="margin-bottom:6px;"><label>منبع</label>
+          <div class="field" style="margin-bottom:6px;"><label>معرف</label>
             <select id="mSource">
               <option value="mobin">انتقالی از مبین سرمایه</option>
               <option value="pouyan_inactive">غیرفعال پویان</option>
+              ${marketerOptionsHtml()}
               <option value="other">سایر</option>
             </select>
           </div>
           <div class="field" style="margin-top:12px;"><label>تغییر ناظر</label>
             <select id="mNazerStatus">
-              <option value="none">فاقد تغییر ناظر</option>
-              <option value="pending">در حال تایید تغییر ناظر</option>
-              <option value="done">اقدام شده</option>
+              <option value="none">ثبت اولیه</option>
+              <option value="pending">در حال پردازش</option>
+              <option value="done">تکمیل‌شده</option>
             </select>
           </div>
           <div class="field" style="margin-top:12px;"><label>نوع مشتری</label>
@@ -1690,6 +1726,7 @@ function renderAddPage(){
   `;
   main.appendChild(wrap);
   let pendingExcel = null;
+  ['mReqCredit','mPrevCredit','mMonthlyFee','mOnlineCredit'].forEach(attachMoneyInput);
   wrap.querySelector('#mExcelFile').addEventListener('change', (e)=>{
     const file=e.target.files[0];
     if(!file){ pendingExcel=null; wrap.querySelector('#mExcelFileName').textContent=''; return; }
@@ -1730,10 +1767,10 @@ function renderAddPage(){
       source:wrap.querySelector('#mSource').value,
       nazerStatus: wrap.querySelector('#mNazerStatus').value,
       market: wrap.querySelector('#mMarket').value,
-      requestedCredit: wrap.querySelector('#mReqCredit').value.trim(),
-      prevBrokerCredit: wrap.querySelector('#mPrevCredit').value.trim(),
-      monthlyFee: wrap.querySelector('#mMonthlyFee').value.trim(),
-      onlineChargeCredit: wrap.querySelector('#mOnlineCredit').value.trim(),
+      requestedCredit: readMoneyInput('mReqCredit'),
+      prevBrokerCredit: readMoneyInput('mPrevCredit'),
+      monthlyFee: readMoneyInput('mMonthlyFee'),
+      onlineChargeCredit: readMoneyInput('mOnlineCredit'),
       excelFile: pendingExcel,
       status:'awaiting',
       createdAt: todayStr(),
@@ -1779,12 +1816,18 @@ $('#tabSecurity').addEventListener('click', ()=>{ setActiveTab('security'); rend
 
 if(!backendConfigured){ showBackendNotConfigured(); } else { initAuth(); }
 
+let lastFormInteractionAt = 0;
+$('#main').addEventListener('input', ()=>{ lastFormInteractionAt = Date.now(); });
+$('#main').addEventListener('change', ()=>{ lastFormInteractionAt = Date.now(); });
+
 setInterval(async ()=>{
   if(!currentUsername) return;
   if(Date.now() - lastLocalSaveAt < 3000) return;
+  if(editingClientId || editingFollowupId) return; // فرم ویرایش باز است — دیتا را جایگزین نکن
+  if(Date.now() - lastFormInteractionAt < 20000) return; // اخیراً توی یکی از فیلدهای فرم چیزی تایپ/انتخاب شده
   const activeEl = document.activeElement;
-  const isTyping = activeEl && (activeEl.tagName==='TEXTAREA' || (activeEl.tagName==='INPUT' && (activeEl.type==='text' || activeEl.type==='tel' || activeEl.type==='number')));
-  if(isTyping) return; // کاربر داره تایپ می‌کنه — دیتا رو جایگزین نکن که چیزی گم نشه
+  const isTyping = activeEl && (activeEl.tagName==='TEXTAREA' || activeEl.tagName==='SELECT' || (activeEl.tagName==='INPUT' && activeEl.type!=='file'));
+  if(isTyping) return; // کاربر الان روی یه فیلده — دیتا رو جایگزین نکن که چیزی گم نشه
   try{
     const res = await sGet(STORE_KEY, true);
     if(res && res.value) DATA = JSON.parse(res.value);
