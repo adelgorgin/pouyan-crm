@@ -1337,7 +1337,9 @@ function renderEditClientForm(c){
             <div class="field"><label>مبلغ اعتبار در کارگزاری قبلی (تومان)</label><input id="ePrevCredit" value="${plainMoney(c.prevBrokerCredit)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
             <div class="field"><label>کارمزد ماهیانه (تومان)</label><input id="eMonthlyFee" value="${plainMoney(c.monthlyFee)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
             <div class="field"><label>مبلغ اعتبار سرخطی (شارژ آنلاین) (تومان)</label><input id="eOnlineCredit" value="${plainMoney(c.onlineChargeCredit)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>پرتفوی مشتری (تومان)</label><input id="ePortfolioValue" value="${plainMoney(c.portfolioValue)}" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
             <div class="field full"><label>اکسل گردش حساب مشتری${c.excelFile ? ' (فایل فعلی: '+c.excelFile.name+')' : ''}</label><input type="file" id="eExcelFile" accept=".xlsx,.xls,.csv"><div id="eExcelFileName" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div></div>
+            <div class="field full"><label>اکسل پرتفوی مشتری${c.portfolioExcelFile ? ' (فایل فعلی: '+c.portfolioExcelFile.name+')' : ''}</label><input type="file" id="ePortfolioExcelFile" accept=".xlsx,.xls,.csv"><div id="ePortfolioExcelFileName" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div></div>
           </div>
         </div>
       </div>
@@ -1351,7 +1353,7 @@ function renderEditClientForm(c){
   wrap.querySelector('#eSource').value = c.source||'other';
   wrap.querySelector('#eNazerStatus').value = c.nazerStatus||'none';
   wrap.querySelector('#eMarket').value = marketOf(c);
-  ['eReqCredit','ePrevCredit','eMonthlyFee','eOnlineCredit'].forEach(attachMoneyInput);
+  ['eReqCredit','ePrevCredit','eMonthlyFee','eOnlineCredit','ePortfolioValue'].forEach(attachMoneyInput);
 
   let pendingEditExcel = undefined;
   wrap.querySelector('#eExcelFile').addEventListener('change', (e)=>{
@@ -1364,6 +1366,20 @@ function renderEditClientForm(c){
       wrap.querySelector('#eExcelFileName').textContent='فایل جدید انتخاب شد: '+file.name;
     };
     reader.onerror=()=>{ showToast('خطا در خواندن فایل'); pendingEditExcel=undefined; };
+    reader.readAsDataURL(file);
+  });
+
+  let pendingEditPortfolioExcel = undefined;
+  wrap.querySelector('#ePortfolioExcelFile').addEventListener('change', (e)=>{
+    const file=e.target.files[0];
+    if(!file){ pendingEditPortfolioExcel=undefined; wrap.querySelector('#ePortfolioExcelFileName').textContent=''; return; }
+    if(file.size > 3*1024*1024){ showToast('حجم فایل باید کمتر از ۳ مگابایت باشه'); e.target.value=''; pendingEditPortfolioExcel=undefined; wrap.querySelector('#ePortfolioExcelFileName').textContent=''; return; }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      pendingEditPortfolioExcel={name:file.name, data:reader.result, uploadedAt: todayStr()};
+      wrap.querySelector('#ePortfolioExcelFileName').textContent='فایل جدید انتخاب شد: '+file.name;
+    };
+    reader.onerror=()=>{ showToast('خطا در خواندن فایل'); pendingEditPortfolioExcel=undefined; };
     reader.readAsDataURL(file);
   });
 
@@ -1382,7 +1398,9 @@ function renderEditClientForm(c){
     lc.prevBrokerCredit=readMoneyInput('ePrevCredit');
     lc.monthlyFee=readMoneyInput('eMonthlyFee');
     lc.onlineChargeCredit=readMoneyInput('eOnlineCredit');
+    lc.portfolioValue=readMoneyInput('ePortfolioValue');
     if(pendingEditExcel!==undefined) lc.excelFile=pendingEditExcel;
+    if(pendingEditPortfolioExcel!==undefined) lc.portfolioExcelFile=pendingEditPortfolioExcel;
     editingClientId=null;
     showToast('اطلاعات مشتری به‌روزرسانی شد');
     renderMain(); renderList();
@@ -1457,8 +1475,10 @@ function renderMain(){
         <span><b>اعتبار در کارگزاری قبلی:</b> ${fmtMoney(c.prevBrokerCredit)}</span>
         <span><b>کارمزد ماهیانه:</b> ${fmtMoney(c.monthlyFee)}</span>
         <span><b>اعتبار سرخطی (شارژ آنلاین):</b> ${fmtMoney(c.onlineChargeCredit)}</span>
+        <span><b>پرتفوی مشتری:</b> ${fmtMoney(c.portfolioValue)}</span>
       </div>
       ${c.excelFile ? `<div style="margin-top:10px;"><a href="${c.excelFile.data}" download="${c.excelFile.name}" class="icon-btn" style="text-decoration:none;display:inline-block;">📊 دانلود اکسل گردش حساب (${c.excelFile.name})</a></div>` : `<div style="margin-top:10px;color:var(--ink-soft);font-size:13px;">اکسل گردش حسابی آپلود نشده.</div>`}
+      ${c.portfolioExcelFile ? `<div style="margin-top:10px;"><a href="${c.portfolioExcelFile.data}" download="${c.portfolioExcelFile.name}" class="icon-btn" style="text-decoration:none;display:inline-block;">📁 دانلود اکسل پرتفوی (${c.portfolioExcelFile.name})</a></div>` : `<div style="margin-top:10px;color:var(--ink-soft);font-size:13px;">اکسل پرتفویی آپلود نشده.</div>`}
     </div>
   `;
   main.appendChild(card);
@@ -1717,7 +1737,9 @@ function renderAddPage(){
             <div class="field"><label>مبلغ اعتبار در کارگزاری قبلی (تومان)</label><input id="mPrevCredit" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
             <div class="field"><label>کارمزد ماهیانه (تومان)</label><input id="mMonthlyFee" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
             <div class="field"><label>مبلغ اعتبار سرخطی (شارژ آنلاین) (تومان)</label><input id="mOnlineCredit" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
+            <div class="field"><label>پرتفوی مشتری (تومان)</label><input id="mPortfolioValue" inputmode="numeric" placeholder="0" style="direction:ltr;text-align:right;"></div>
             <div class="field full"><label>اکسل گردش حساب مشتری</label><input type="file" id="mExcelFile" accept=".xlsx,.xls,.csv"><div id="mExcelFileName" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div></div>
+            <div class="field full"><label>اکسل پرتفوی مشتری</label><input type="file" id="mPortfolioExcelFile" accept=".xlsx,.xls,.csv"><div id="mPortfolioExcelFileName" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div></div>
           </div>
         </div>
       </div>
@@ -1726,7 +1748,8 @@ function renderAddPage(){
   `;
   main.appendChild(wrap);
   let pendingExcel = null;
-  ['mReqCredit','mPrevCredit','mMonthlyFee','mOnlineCredit'].forEach(attachMoneyInput);
+  let pendingPortfolioExcel = null;
+  ['mReqCredit','mPrevCredit','mMonthlyFee','mOnlineCredit','mPortfolioValue'].forEach(attachMoneyInput);
   wrap.querySelector('#mExcelFile').addEventListener('change', (e)=>{
     const file=e.target.files[0];
     if(!file){ pendingExcel=null; wrap.querySelector('#mExcelFileName').textContent=''; return; }
@@ -1737,6 +1760,18 @@ function renderAddPage(){
       wrap.querySelector('#mExcelFileName').textContent='فایل انتخاب شد: '+file.name;
     };
     reader.onerror=()=>{ showToast('خطا در خواندن فایل'); pendingExcel=null; };
+    reader.readAsDataURL(file);
+  });
+  wrap.querySelector('#mPortfolioExcelFile').addEventListener('change', (e)=>{
+    const file=e.target.files[0];
+    if(!file){ pendingPortfolioExcel=null; wrap.querySelector('#mPortfolioExcelFileName').textContent=''; return; }
+    if(file.size > 3*1024*1024){ showToast('حجم فایل باید کمتر از ۳ مگابایت باشه'); e.target.value=''; pendingPortfolioExcel=null; wrap.querySelector('#mPortfolioExcelFileName').textContent=''; return; }
+    const reader=new FileReader();
+    reader.onload=()=>{
+      pendingPortfolioExcel={name:file.name, data:reader.result, uploadedAt: todayStr()};
+      wrap.querySelector('#mPortfolioExcelFileName').textContent='فایل انتخاب شد: '+file.name;
+    };
+    reader.onerror=()=>{ showToast('خطا در خواندن فایل'); pendingPortfolioExcel=null; };
     reader.readAsDataURL(file);
   });
   wrap.querySelector('#mSave').addEventListener('click', async()=>{
@@ -1772,6 +1807,8 @@ function renderAddPage(){
       monthlyFee: readMoneyInput('mMonthlyFee'),
       onlineChargeCredit: readMoneyInput('mOnlineCredit'),
       excelFile: pendingExcel,
+      portfolioValue: readMoneyInput('mPortfolioValue'),
+      portfolioExcelFile: pendingPortfolioExcel,
       status:'awaiting',
       createdAt: todayStr(),
       createdBy: currentUser || null,
