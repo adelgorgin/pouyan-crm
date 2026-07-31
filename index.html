@@ -786,7 +786,7 @@ async function initAuth(){
 /* ===================== خروج خودکار بعد از عدم فعالیت =====================
    از یه setTimeout ساده استفاده نمی‌کنیم چون تب‌های پس‌زمینه توی مرورگر تایمرها رو کند/معطل می‌کنن
    و باعث می‌شه خروج با تاخیر و بعد از یه کلیک اتفاق بیفته. به‌جاش زمان واقعی رو چک می‌کنیم. */
-const IDLE_LIMIT_MS = 5*60*1000;
+const IDLE_LIMIT_MS = 20*60*1000;
 let lastActivityAt = Date.now();
 async function doLogout(auto){
   try{ await sDelete(SESSION_KEY, false); }catch(e){}
