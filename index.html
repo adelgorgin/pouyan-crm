@@ -1721,6 +1721,7 @@ function renderAddPage(){
   wrap.innerHTML=`
     <div class="reg-title">افزودن مشتری جدید</div>
     <div class="reg-sub">این مشتری بعد از ثبت، مستقیم در تب «در حال پیگیری» قرار می‌گیره. بعد از تکمیل ثبت‌نام، بر اساس نوع مشتری، به تب «بورس اوراق»، «بورس کالا» یا «بورس انرژی» منتقل می‌شه. اگه همین الان هم باهاش تماس گرفتی، می‌تونی نتیجه‌ی پیگیری رو همین‌جا ثبت کنی.</div>
+    <div class="reg-actions" style="position:static;background:none;border:none;padding:0;margin:14px 0 4px;"><button class="reg-save" id="mSaveTop">افزودن مشتری</button></div>
     <div class="add-layout">
       <div>
         <div class="reg-card">
@@ -1819,7 +1820,7 @@ function renderAddPage(){
     reader.onerror=()=>{ showToast('خطا در خواندن فایل'); pendingPortfolioExcel=null; };
     reader.readAsDataURL(file);
   });
-  wrap.querySelector('#mSave').addEventListener('click', async()=>{
+  const mSaveHandler = async()=>{
     const name=wrap.querySelector('#mName').value.trim();
     if(!name){ showToast('نام مشتری رو وارد کن'); return; }
     const phone=wrap.querySelector('#mPhone').value.trim();
@@ -1866,7 +1867,9 @@ function renderAddPage(){
     render();
     showToast('مشتری ثبت شد و در «در حال پیگیری» قرار گرفت');
     saveData();
-  });
+  };
+  wrap.querySelector('#mSave').addEventListener('click', mSaveHandler);
+  wrap.querySelector('#mSaveTop').addEventListener('click', mSaveHandler);
 }
 
 function updateSidebarVisibility(){
