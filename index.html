@@ -1440,6 +1440,42 @@ function renderKarmozdPage(){
     if(!w) showToast('مرورگر جلوی باز شدن تب جدید رو گرفت — اجازه‌ی پاپ‌آپ رو برای این سایت فعال کن');
   });
 }
+function renderFutureOverview(main){
+  const list = visibleClients()
+    .map(c=>({c, next:clientNextInfo(c)}))
+    .filter(e=>e.c.status!=='completed' && e.next.nextDate && daysDiff(e.next.nextDate) > 0)
+    .sort((a,b)=>(a.next.nextDate||'').localeCompare(b.next.nextDate||''));
+
+  if(list.length===0){
+    main.appendChild(el('div','placeholder','<b>هیچ پیگیری آینده‌ای ثبت نشده</b><span>مشتری‌هایی که تاریخ پیگیری بعدیشون از امروز جلوتره، اینجا میان</span>'));
+    return;
+  }
+
+  const wrap=el('div','future-overview');
+  wrap.style.cssText='padding:6px 2px;';
+  wrap.appendChild(el('div','section-title','<span class="dot"></span> پیگیری‌های آینده'));
+  const listEl=el('div','');
+  listEl.style.cssText='display:flex;flex-direction:column;gap:10px;margin-top:14px;';
+  list.forEach(e=>{
+    const d=daysDiff(e.next.nextDate);
+    const row=el('div','client-card');
+    row.style.cssText='padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;';
+    row.innerHTML=`
+      <div>
+        <div style="font-weight:700;font-size:15px;">${e.c.name}</div>
+        <div style="color:var(--ink-soft);font-size:13px;margin-top:4px;">${e.c.phone||'—'}</div>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-weight:700;">${fmtDate(e.next.nextDate)}</div>
+        <div style="color:var(--ink-soft);font-size:12.5px;margin-top:4px;">${d===1?'فردا':`${d} روز دیگه`}</div>
+      </div>
+    `;
+    row.addEventListener('click', ()=>{ selectedId=e.c.id; renderMain(); });
+    listEl.appendChild(row);
+  });
+  wrap.appendChild(listEl);
+  main.appendChild(wrap);
+}
 function renderMain(){
   if(currentTab==='add'){ renderAddPage(); return; }
   if(currentTab==='misc'){ renderMiscPage(); return; }
@@ -1451,6 +1487,7 @@ function renderMain(){
   const c=DATA.clients[selectedId];
   if(!c || (!isAdmin && assignedOf(c)!==currentUsername)){
     selectedId=null;
+    if(currentTab==='future'){ renderFutureOverview(main); return; }
     main.appendChild(el('div','placeholder','<b>یه مشتری رو از لیست انتخاب کن</b><span>یا از تب «افزودن مشتری» شروع کن</span>'));
     return;
   }
@@ -1890,7 +1927,7 @@ $('#searchBox').addEventListener('input', renderList);
 $('#tabToday').addEventListener('click', ()=>{ setActiveTab('today'); render(); });
 $('#tabAll').addEventListener('click', ()=>{ setActiveTab('all'); render(); });
 $('#tabAwaiting').addEventListener('click', ()=>{ setActiveTab('awaiting'); render(); });
-$('#tabFuture').addEventListener('click', ()=>{ setActiveTab('future'); render(); });
+$('#tabFuture').addEventListener('click', ()=>{ setActiveTab('future'); selectedId=null; render(); });
 $('#tabAdd').addEventListener('click', ()=>{ setActiveTab('add'); selectedId=null; render(); });
 $('#tabMisc').addEventListener('click', ()=>{ setActiveTab('misc'); selectedId=null; render(); });
 $('#tabDone').addEventListener('click', ()=>{ setActiveTab('done'); render(); });
