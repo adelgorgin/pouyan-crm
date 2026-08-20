@@ -75,15 +75,15 @@
 
   .client-list{overflow-y:auto;padding:8px;}
   .client-item{
-    padding:11px 12px;border-radius:10px;cursor:pointer;margin-bottom:4px;
+    padding:7px 12px;border-radius:10px;cursor:pointer;margin-bottom:2px;
     border:1px solid transparent;transition:.12s;
   }
   .client-item:hover{background:var(--paper);}
   .client-item.selected{background:var(--teal-tint);border-color:var(--teal);}
   .ci-top{display:flex;justify-content:space-between;align-items:center;gap:6px;}
-  .ci-name{font-weight:700;font-size:14px;}
-  .ci-phone{font-size:11.5px;color:var(--ink-soft);margin-top:2px;direction:ltr;text-align:right;}
-  .badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+  .ci-name{font-weight:700;font-size:12.5px;}
+  .ci-phone{font-size:10.5px;color:var(--ink-soft);margin-top:1px;direction:ltr;text-align:right;}
+  .badge{font-size:9.5px;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap;}
   .badge.overdue{background:var(--brick-tint);color:var(--brick);}
   .badge.today{background:var(--amber-tint);color:var(--amber);}
   .badge.upcoming{background:var(--teal-tint);color:var(--teal-deep);}
@@ -1440,42 +1440,6 @@ function renderKarmozdPage(){
     if(!w) showToast('مرورگر جلوی باز شدن تب جدید رو گرفت — اجازه‌ی پاپ‌آپ رو برای این سایت فعال کن');
   });
 }
-function renderFutureOverview(main){
-  const list = visibleClients()
-    .map(c=>({c, next:clientNextInfo(c)}))
-    .filter(e=>e.c.status!=='completed' && e.next.nextDate && daysDiff(e.next.nextDate) > 0)
-    .sort((a,b)=>(a.next.nextDate||'').localeCompare(b.next.nextDate||''));
-
-  if(list.length===0){
-    main.appendChild(el('div','placeholder','<b>هیچ پیگیری آینده‌ای ثبت نشده</b><span>مشتری‌هایی که تاریخ پیگیری بعدیشون از امروز جلوتره، اینجا میان</span>'));
-    return;
-  }
-
-  const wrap=el('div','future-overview');
-  wrap.style.cssText='padding:6px 2px;';
-  wrap.appendChild(el('div','section-title','<span class="dot"></span> پیگیری‌های آینده'));
-  const listEl=el('div','');
-  listEl.style.cssText='display:flex;flex-direction:column;gap:10px;margin-top:14px;';
-  list.forEach(e=>{
-    const d=daysDiff(e.next.nextDate);
-    const row=el('div','client-card');
-    row.style.cssText='padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;';
-    row.innerHTML=`
-      <div>
-        <div style="font-weight:700;font-size:15px;">${e.c.name}</div>
-        <div style="color:var(--ink-soft);font-size:13px;margin-top:4px;">${e.c.phone||'—'}</div>
-      </div>
-      <div style="text-align:left;">
-        <div style="font-weight:700;">${fmtDate(e.next.nextDate)}</div>
-        <div style="color:var(--ink-soft);font-size:12.5px;margin-top:4px;">${d===1?'فردا':`${d} روز دیگه`}</div>
-      </div>
-    `;
-    row.addEventListener('click', ()=>{ selectedId=e.c.id; renderMain(); });
-    listEl.appendChild(row);
-  });
-  wrap.appendChild(listEl);
-  main.appendChild(wrap);
-}
 function renderMain(){
   if(currentTab==='add'){ renderAddPage(); return; }
   if(currentTab==='misc'){ renderMiscPage(); return; }
@@ -1487,7 +1451,6 @@ function renderMain(){
   const c=DATA.clients[selectedId];
   if(!c || (!isAdmin && assignedOf(c)!==currentUsername)){
     selectedId=null;
-    if(currentTab==='future'){ renderFutureOverview(main); return; }
     main.appendChild(el('div','placeholder','<b>یه مشتری رو از لیست انتخاب کن</b><span>یا از تب «افزودن مشتری» شروع کن</span>'));
     return;
   }
