@@ -1078,7 +1078,7 @@ function renderList(){
   entries=entries.map(c=>({c,next:clientNextInfo(c)}));
 
   if(currentTab==='today'){
-    entries=entries.filter(e=>e.c.status!=='completed' && e.c.status!=='awaiting' && e.next.nextDate && (statusOf(e.next.nextDate,e.c.status)==='overdue' || statusOf(e.next.nextDate,e.c.status)==='today'));
+    entries=entries.filter(e=>e.c.status!=='completed' && e.next.nextDate && (statusOf(e.next.nextDate,e.c.status)==='overdue' || statusOf(e.next.nextDate,e.c.status)==='today'));
     entries.sort((a,b)=>(a.next.nextDate||'').localeCompare(b.next.nextDate||''));
   } else if(currentTab==='done'){
     entries=entries.filter(e=>e.c.status==='completed' && marketOf(e.c)==='securities');
