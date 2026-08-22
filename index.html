@@ -514,6 +514,10 @@ function resolveSourceLabel(source){
     const mk=DATA.marketers && DATA.marketers[mid];
     return mk ? (mk.name+' (بازاریاب)') : '—';
   }
+  if(source.startsWith('user:')){
+    const uname=source.slice('user:'.length);
+    return ownerName(uname);
+  }
   return '—';
 }
 function marketerOptionsHtml(){
@@ -1311,12 +1315,12 @@ function renderEditClientForm(c){
           <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="ePhone" value="${c.phone||''}" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
           <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="eNationalId" value="${c.nationalId||''}" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
           <div class="field" style="margin-bottom:6px;"><label>معرف</label>
-            <select id="eSource">
+            ${isAdmin ? `<select id="eSource">
               <option value="mobin">انتقالی از مبین سرمایه</option>
               <option value="pouyan_inactive">غیرفعال پویان</option>
               ${marketerOptionsHtml()}
               <option value="other">سایر</option>
-            </select>
+            </select>` : `<input id="eSource" value="${ownerName(currentUsername)}" disabled style="background:var(--paper);color:var(--ink-soft);">`}
           </div>
           <div class="field" style="margin-top:12px;"><label>تغییر ناظر</label>
             <select id="eNazerStatus">
@@ -1353,7 +1357,7 @@ function renderEditClientForm(c){
     </div>
   `;
   main.appendChild(wrap);
-  wrap.querySelector('#eSource').value = c.source||'other';
+  if(isAdmin) wrap.querySelector('#eSource').value = c.source||'other';
   wrap.querySelector('#eNazerStatus').value = c.nazerStatus||'none';
   wrap.querySelector('#eMarket').value = marketOf(c);
   ['eReqCredit','ePrevCredit','eMonthlyFee','eOnlineCredit','ePortfolioValue'].forEach(attachMoneyInput);
@@ -1394,7 +1398,7 @@ function renderEditClientForm(c){
     lc.name=name;
     lc.phone=wrap.querySelector('#ePhone').value.trim();
     lc.nationalId=wrap.querySelector('#eNationalId').value.trim();
-    lc.source=wrap.querySelector('#eSource').value;
+    lc.source = isAdmin ? wrap.querySelector('#eSource').value : (c.source && c.source.startsWith('user:') ? c.source : ('user:'+currentUsername));
     lc.nazerStatus=wrap.querySelector('#eNazerStatus').value;
     lc.market=wrap.querySelector('#eMarket').value;
     lc.requestedCredit=readMoneyInput('eReqCredit');
@@ -1729,12 +1733,12 @@ function renderAddPage(){
           <div class="field" style="margin-bottom:12px;"><label>شماره تماس</label><input id="mPhone" placeholder="0912xxxxxxx" style="direction:ltr;text-align:right;"></div>
           <div class="field" style="margin-bottom:12px;"><label>کد ملی</label><input id="mNationalId" placeholder="0000000000" style="direction:ltr;text-align:right;" maxlength="10"></div>
           <div class="field" style="margin-bottom:6px;"><label>معرف</label>
-            <select id="mSource">
+            ${isAdmin ? `<select id="mSource">
               <option value="mobin">انتقالی از مبین سرمایه</option>
               <option value="pouyan_inactive">غیرفعال پویان</option>
               ${marketerOptionsHtml()}
               <option value="other">سایر</option>
-            </select>
+            </select>` : `<input id="mSource" value="${ownerName(currentUsername)}" disabled style="background:var(--paper);color:var(--ink-soft);">`}
           </div>
           <div class="field" style="margin-top:12px;"><label>تغییر ناظر</label>
             <select id="mNazerStatus">
@@ -1845,7 +1849,7 @@ function renderAddPage(){
       id, name,
       phone,
       nationalId,
-      source:wrap.querySelector('#mSource').value,
+      source: isAdmin ? wrap.querySelector('#mSource').value : ('user:'+currentUsername),
       nazerStatus: wrap.querySelector('#mNazerStatus').value,
       market: wrap.querySelector('#mMarket').value,
       requestedCredit: readMoneyInput('mReqCredit'),
